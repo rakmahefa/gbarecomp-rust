@@ -69,8 +69,13 @@ pub enum Flow {
 
 const N: u32 = 1 << 31;
 const Z: u32 = 1 << 30;
+const T: u32 = 1 << 5;
 const C: u32 = 1 << 29;
 const V: u32 = 1 << 28;
+
+fn set_thumb(state: &mut RecompiledState, thumb: bool) {
+    state.cpsr = (state.cpsr & !T) | if thumb { T } else { 0 };
+}
 
 fn condition_passed(cpsr: u32, condition: u8) -> bool {
     let n = cpsr & N != 0;
@@ -164,6 +169,8 @@ fn emit_block(output: &mut String, block: &BasicBlock) -> Result<(), RecompileEr
         "\nfn block_{:08X}_{}(state: &mut RecompiledState) -> Result<Flow, &'static str> {{",
         block.start, suffix
     );
+    let thumb = block.instruction_set == super::InstructionSet::Thumb;
+    let _ = writeln!(output, "    set_thumb(state, {thumb});");
 
     for instruction in &block.instructions {
         emit_instruction(output, instruction)?;
@@ -425,28 +432,54 @@ mod tests {
             instruction_limit: 100,
             reached_instruction_limit: false,
         };
-        let source = emit_rust_source(&report).expect("valid IR should emit Rust");
+        let mut source = emit_rust_source(&report).expect("valid IR should emit Rust");
+        source.push_str(
+            r#"
+#[test]
+fn generated_mov_and_branch_execute_natively() {
+    let mut state = RecompiledState::default();
+    assert_eq!(
+        execute_block(0x0800_0000, false, &mut state),
+        Ok(Flow::Branch { target: 0x0800_0008, thumb: false })
+    );
+    assert_eq!(state.regs[0], 1);
+    assert_eq!(state.regs[15], 0x0800_0008);
+    assert_eq!(state.cpsr & T, 0);
+    assert_eq!(
+        execute_block(0x0800_0008, false, &mut state),
+        Ok(Flow::Exit)
+    );
+}
+"#,
+        );
 
         let temp = std::env::temp_dir();
         let stem = format!("gbarecomp-generated-smoke-{}", std::process::id());
         let source_path = temp.join(format!("{stem}.rs"));
-        let library_path = temp.join(format!("lib{stem}.rlib"));
+        let binary_path = temp.join(stem);
         std::fs::write(&source_path, source).expect("write generated source");
-        let output = Command::new("rustc")
+        let compile = Command::new("rustc")
             .arg("--edition=2024")
-            .arg("--crate-type=lib")
+            .arg("--test")
             .arg(&source_path)
             .arg("-o")
-            .arg(&library_path)
+            .arg(&binary_path)
             .output()
             .expect("rustc must be installed in the Cargo test environment");
-        let _ = std::fs::remove_file(&source_path);
-        let _ = std::fs::remove_file(&library_path);
-
         assert!(
-            output.status.success(),
+            compile.status.success(),
             "generated Rust failed to compile:\n{}",
-            String::from_utf8_lossy(&output.stderr)
+            String::from_utf8_lossy(&compile.stderr)
+        );
+        let execute = Command::new(&binary_path)
+            .output()
+            .expect("execute generated native test binary");
+        let _ = std::fs::remove_file(&source_path);
+        let _ = std::fs::remove_file(&binary_path);
+        assert!(
+            execute.status.success(),
+            "generated Rust semantics failed:\n{}",
+            String::from_utf8_lossy(&execute.stdout)
         );
     }
 }
