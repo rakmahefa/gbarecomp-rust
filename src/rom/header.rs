@@ -56,8 +56,9 @@ impl Error for RomHeaderError {}
 /// reject such an image at a later validation stage.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct GbaHeader {
-    /// ARM branch instruction at cartridge offset zero, decoded as little-endian.
-    pub entry_point: u32,
+    /// ARM branch opcode stored at cartridge offsets 0..4, decoded as little-endian.
+    /// This is the instruction word, not the resolved branch destination.
+    pub entry_branch_opcode: u32,
     /// Twelve raw bytes from the cartridge title field.
     pub title: [u8; 12],
     /// Four raw bytes identifying the game.
@@ -101,7 +102,7 @@ impl GbaHeader {
         let calculated_checksum = calculate_complement_checksum(image);
 
         Ok(Self {
-            entry_point: u32::from_le_bytes(copy_array::<4>(image, 0)),
+            entry_branch_opcode: u32::from_le_bytes(copy_array::<4>(image, 0)),
             title,
             game_code,
             maker_code,
@@ -164,7 +165,7 @@ mod tests {
         let image = synthetic_header();
         let header = GbaHeader::parse(&image).expect("synthetic header should parse");
 
-        assert_eq!(header.entry_point, 0xEA00_002E);
+        assert_eq!(header.entry_branch_opcode, 0xEA00_002E);
         assert_eq!(header.title, *b"TEST GAME   ");
         assert_eq!(header.title_lossy(), "TEST GAME");
         assert_eq!(header.game_code, *b"TSTR");

@@ -21,7 +21,7 @@ Analyser le code GBA ARM7TDMI (ARM/Thumb) et **générer du code source Rust**, 
 ## Changements de ce groupe
 
 - Ajout de `src/rom/mod.rs` et `src/rom/header.rs` ; exposition de `pub mod rom` dans `src/lib.rs`.
-- Le parseur lit l'en-tête fixe GBA de 0xC0 octets, expose le point d'entrée et les champs de titre/game code/maker code/fixed value/unit code/device type/version et calcule le complement checksum.
+- Le parseur lit l'en-tête fixe GBA de 0xC0 octets, expose le mot d'instruction ARM de branchement stocké aux offsets 0..4 (pas sa destination résolue), les champs de titre/game code/maker code/fixed value/unit code/device type/version et calcule le complement checksum.
 - Erreur structurelle dédiée quand l'entrée est plus courte que 0xC0 octets.
 - Un checksum incorrect reste une métadonnée diagnostique : les autres champs sont renvoyés au lieu de masquer la ROM à cause du checksum seul.
 - Trois tests unitaires utilisent exclusivement un en-tête synthétique : champs et checksum valide, entrée trop courte, checksum incorrect.
@@ -32,7 +32,8 @@ Analyser le code GBA ARM7TDMI (ARM/Thumb) et **générer du code source Rust**, 
 
 - À la clôture précédente, le run CI `39746990377` était vert pour le scaffold : filtre de ROM, `cargo fmt`, Clippy et `cargo test`.
 - Le premier run du parseur, `39747920168`, a échoué sur `cargo fmt --check` car rustfmt demande de réordonner les noms dans le `pub use` de `src/rom/mod.rs`. Le correctif a été commité dans `c96edb7bed71ba14f09bb857160d09621a9d849e`.
-- **Validation réussie :** le run CI `39748310841` sur ce commit a passé les contrôles de patch, le garde-fou ROM, `cargo fmt --all -- --check`, Clippy avec warnings interdits et `cargo test --workspace --all-features --locked`. Les trois tests du header sont donc passés.
+- **Validation réussie pour la version précédant la clarification sémantique :** le run CI `39748310841` au commit `c96edb7bed71ba14f09bb857160d09621a9d849e` a passé les contrôles de patch, le garde-fou ROM, `cargo fmt --all -- --check`, Clippy et `cargo test --workspace --all-features --locked` ; les trois tests du header ont passé.
+- Ce groupe renomme `entry_point` en `entry_branch_opcode` : les octets 0..4 sont le mot d'instruction ARM de branchement du header, pas la cible résolue. Cette modification de nomenclature et sa documentation attendent la CI du commit courant.
 - Aucun build local n'a été exécuté dans l'environnement de préparation ; la fenêtre Bevy n'a pas été testée par lancement interactif.
 - Le parseur ne charge pas la totalité de la ROM, ne mappe pas les régions ROM, ne décode pas ARM/Thumb et n'émet pas encore de code Rust.
 

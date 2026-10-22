@@ -10,7 +10,7 @@ La référence [mstan/gbarecomp](https://github.com/mstan/gbarecomp) sert à ét
 
 ## Couches proposées
 
-1. **En-tête et identification de cartouche** — le premier composant lit l'en-tête fixe GBA de 0xC0 octets, expose le point d'entrée et les champs de titre/code/maker/version, puis calcule le complement checksum. Un checksum incohérent est actuellement signalé comme métadonnée diagnostique ; les politiques de rejet relèveront d'une étape de validation ultérieure. Le chargement de l'image complète, son hash et sa cartographie mémoire restent à implémenter.
+1. **En-tête et identification de cartouche** — le premier composant lit l'en-tête fixe GBA de 0xC0 octets, expose le mot d'instruction ARM de branchement aux offsets 0..4 (pas la destination déjà résolue) et les champs de titre/code/maker/version, puis calcule le complement checksum. Un checksum incohérent est actuellement signalé comme métadonnée diagnostique ; les politiques de rejet relèveront d'une étape de validation ultérieure. Le chargement de l'image complète, son hash et sa cartographie mémoire restent à implémenter.
 2. **Analyse statique ARM/Thumb** — découverte du code et des blocs, état ARM/Thumb, branches, appels, tables littérales, données vs code et cibles indirectes résolues. Les hypothèses doivent être traçables.
 3. **IR et validation sémantique** — représentation intermédiaire indépendante de Bevy ; sémantique des flags, conditions, shifter, effets mémoire et contrat d'appel. Tests sur cas isolés avant émission native.
 4. **Émission Rust** — génération lisible et reproductible des fonctions Rust. La sortie est compilée par Cargo/rustc pendant la construction, avant livraison ou lancement du jeu recompilé.

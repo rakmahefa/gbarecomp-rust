@@ -40,7 +40,7 @@ La première compilation Bevy est lourde ; le workflow CI met en cache le regist
 
 ## Parseur d'en-tête et ROM locale
 
-Le parseur actuel inspecte les champs fixes du header de 0xC0 octets et rapporte si le complement checksum correspond. Une entrée trop courte produit une erreur structurelle. Un checksum invalide est signalé sans masquer les autres champs ; il ne provoque pas encore un rejet automatique. Ceci ne constitue ni un chargeur de ROM complet, ni un décodeur ARM/Thumb, ni une recompilation.
+Le parseur actuel inspecte les champs fixes du header de 0xC0 octets, expose le mot d'instruction ARM de branchement aux offsets 0..4 (pas sa destination résolue) et rapporte si le complement checksum correspond. Une entrée trop courte produit une erreur structurelle. Un checksum invalide est signalé sans masquer les autres champs ; il ne provoque pas encore un rejet automatique. Ceci ne constitue ni un chargeur de ROM complet, ni un décodeur ARM/Thumb, ni une recompilation.
 
 La ROM de test doit être présente localement dans `rom/` et ignorée par Git. Vérifier avec :
 

@@ -18,7 +18,7 @@ Si sa redistribution publique n'est pas autorisée, une purge d'historique coord
 
 **Sévérité : élevée pour la couverture fonctionnelle ; attendue à ce stade.**
 
-Un parseur d'en-tête fixe est maintenant présent. Il lit les 0xC0 premiers octets requis, décode le point d'entrée et les champs de titre, game code, maker code, unité, device type et version ; il calcule aussi le complement checksum. Il ne charge pas à lui seul la ROM entière, ne trouve pas les fonctions invitées et ne génère pas encore de code Rust. Il n'existe donc toujours pas de preuve de compatibilité avec un jeu GBA.
+Un parseur d'en-tête fixe est maintenant présent. Il lit les 0xC0 premiers octets requis, expose le mot d'instruction ARM de branchement stocké aux offsets 0..4 (sans prétendre avoir résolu sa destination) et les champs de titre, game code, maker code, unité, device type et version ; il calcule aussi le complement checksum. Il ne charge pas à lui seul la ROM entière, ne trouve pas les fonctions invitées et ne génère pas encore de code Rust. Il n'existe donc toujours pas de preuve de compatibilité avec un jeu GBA.
 
 ### A-03 — Licence de la référence C++ à vérifier avant tout portage de code
 
@@ -60,11 +60,11 @@ Le run `39745818857` a détecté que la chaîne de configuration Bevy retournait
 
 ### A-09 — Parseur de l'en-tête GBA : périmètre limité
 
-**État : implémenté et validé par la CI Linux.**
+**État : parsing et tests synthétiques validés pour le commit précédent ; renommage sémantique soumis, CI en attente.**
 
-Le parseur vérifie qu'au moins 0xC0 octets sont disponibles, extrait le point d'entrée et les champs fixes, expose les octets de titre/code/maker sans les normaliser et signale le complement checksum calculé. Le checksum incohérent est une information diagnostique et ne fait pas échouer le parsing structurel. Les tests utilisent uniquement une fixture synthétique, jamais la ROM de développement.
+Le parseur vérifie qu'au moins 0xC0 octets sont disponibles, expose le mot d'instruction ARM de branchement stocké aux offsets 0..4 et les champs fixes, expose les octets de titre/code/maker sans les normaliser et signale le complement checksum calculé. Le checksum incohérent est une information diagnostique et ne fait pas échouer le parsing structurel. Les tests utilisent uniquement une fixture synthétique, jamais la ROM de développement.
 
-Le premier run CI du parseur (`39747920168`) a échoué uniquement sur `cargo fmt --check`, qui demandait de réordonner la liste `pub use` dans `src/rom/mod.rs`. Le correctif a été validé par [le run CI `39748310841`](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39748310841) au commit `c96edb7bed71ba14f09bb857160d09621a9d849e` : formatage, Clippy et tests passent.
+Le premier run CI du parseur (`39747920168`) a échoué uniquement sur `cargo fmt --check`, qui demandait de réordonner la liste `pub use` dans `src/rom/mod.rs`. Le correctif de formatage a été validé par [le run CI `39748310841`](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39748310841) au commit `c96edb7bed71ba14f09bb857160d09621a9d849e` : formatage, Clippy et tests passent. Le champ `entry_point` a ensuite été renommé `entry_branch_opcode` pour décrire l'opcode ARM brut et non la destination calculée ; cette clarification attend le nouveau run.
 
 Ce composant ne doit ni interpréter des instructions, ni exécuter du contenu ROM, ni déclencher une compilation de code invité. L'analyse et la génération de code restent des étapes statiques de build qui viendront plus tard.
 

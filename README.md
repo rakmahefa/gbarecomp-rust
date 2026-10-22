@@ -8,9 +8,9 @@ L'objectif est d'analyser le code machine ARM7TDMI (ARM et Thumb) d'une ROM GBA,
 
 ## État du projet
 
-Le scaffold Rust/Bevy et les contrôles fmt, Clippy et tests passent la CI Linux ([run 39746990377](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746990377), commit `a59ffc334db03e54c473d5367f5b9afcd1f84393`). Le parseur initial de l'en-tête GBA et ses tests synthétiques passent la CI Linux au commit `c96edb7bed71ba14f09bb857160d09621a9d849e` ([run 39748310841](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39748310841)). Le premier run avait relevé un ordre d'import à appliquer via rustfmt ; ce point est corrigé.
+Le scaffold Rust/Bevy et les contrôles fmt, Clippy et tests passent la CI Linux ([run 39746990377](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746990377), commit `a59ffc334db03e54c473d5367f5b9afcd1f84393`). Le parseur initial de l'en-tête GBA et ses tests synthétiques ont passé la CI Linux au commit `c96edb7bed71ba14f09bb857160d09621a9d849e` ([run 39748310841](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39748310841)). Le champ du branchement initial est renommé ici pour distinguer le mot d'instruction de sa destination, que l'analyse statique devra résoudre ; ce correctif attend sa CI.
 
-Le parseur lit les champs fixes de l'en-tête de 0xC0 octets et signale la validité du checksum. Ses tests utilisent une fixture synthétique ; aucune ROM réelle n'est nécessaire pour ces tests. Le chargement complet de ROM, la cartographie des régions, le décodeur ARM/Thumb, l'IR, l'émission de fonctions Rust et le modèle matériel ne sont pas encore implémentés. La fenêtre Bevy reste un placeholder et ne représente pas un jeu exécuté.
+Le parseur lit les champs fixes de l'en-tête de 0xC0 octets, expose le mot d'instruction ARM de branchement aux offsets 0..4 (sans prétendre avoir résolu sa destination), et signale la validité du checksum. Ses tests utilisent une fixture synthétique ; aucune ROM réelle n'est nécessaire pour ces tests. Le chargement complet de ROM, la cartographie des régions, le décodeur ARM/Thumb, l'IR, l'émission de fonctions Rust et le modèle matériel ne sont pas encore implémentés. La fenêtre Bevy reste un placeholder et ne représente pas un jeu exécuté.
 
 ## Références
 
