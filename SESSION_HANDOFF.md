@@ -1,6 +1,6 @@
 # Session handoff
 
-Dernière mise à jour : 2026-10-22
+Dernière mise à jour : 2026-10-22 (revue des workflows)
 Groupe de travail : Phase 0 — bootstrap Linux/CI/artefacts
 Branche de préparation : phase-0/bootstrap-linux-workflows
 
@@ -33,6 +33,12 @@ Créer une recompilation statique GBA en Rust, avec Bevy comme runtime hôte. Li
 - Le format du paquet de release devra évoluer si le runtime exige d'autres ressources, bibliothèques dynamiques ou données.
 - Le workflow REA prépare un bundle statique (binaire + métadonnées + rapports ELF) ; l'analyse pilotée par agent et moteur natif s'effectue séparément dans l'environnement configuré.
 - Il faut décider la licence propre au projet et la politique de purge de l'historique contenant l'ancien blob ROM.
+
+## Revue de configuration après le premier commit
+
+- Le workflow REA installe explicitement Node.js 24.11.0, compatible avec les engines déclarés par la version REA épinglée.
+- La vérification d'existence d'une release reçoit GH_TOKEN ; elle ne doit pas dépendre d'une lecture GitHub non authentifiée.
+- Cette correction est dans un commit séparé et ce handoff est mis à jour avec lui.
 
 ## Règle pour les prochaines sessions
 
