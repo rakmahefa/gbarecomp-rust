@@ -24,6 +24,17 @@ pub enum ArmInstruction {
         condition: u8,
         rm: u8,
     },
+    SingleDataTransferImmediate {
+        condition: u8,
+        load: bool,
+        byte: bool,
+        pre_index: bool,
+        add_offset: bool,
+        write_back: bool,
+        rn: u8,
+        rd: u8,
+        offset: u16,
+    },
     SoftwareInterrupt {
         condition: u8,
         comment: u32,
@@ -64,6 +75,21 @@ pub fn decode(word: u32) -> ArmInstruction {
             condition,
             link: word & (1 << 24) != 0,
             offset: ((encoded << 8) as i32) >> 6,
+        };
+    }
+
+    // Single data transfers with an immediate offset; register-offset forms remain unsupported.
+    if word & 0x0C00_0000 == 0x0400_0000 && word & (1 << 25) == 0 {
+        return ArmInstruction::SingleDataTransferImmediate {
+            condition,
+            load: word & (1 << 20) != 0,
+            byte: word & (1 << 22) != 0,
+            pre_index: word & (1 << 24) != 0,
+            add_offset: word & (1 << 23) != 0,
+            write_back: word & (1 << 21) != 0,
+            rn: ((word >> 16) & 0x0F) as u8,
+            rd: ((word >> 12) & 0x0F) as u8,
+            offset: (word & 0x0FFF) as u16,
         };
     }
 
@@ -119,6 +145,38 @@ mod tests {
                 rd: 0,
                 value: 0x4000_0000,
                 shifter_carry: Some(false),
+            }
+        );
+    }
+
+    #[test]
+    fn decodes_word_str_and_ldr_with_immediate_offset() {
+        assert_eq!(
+            decode(0xE580_1004),
+            ArmInstruction::SingleDataTransferImmediate {
+                condition: 0xE,
+                load: false,
+                byte: false,
+                pre_index: true,
+                add_offset: true,
+                write_back: false,
+                rn: 0,
+                rd: 1,
+                offset: 4,
+            }
+        );
+        assert_eq!(
+            decode(0xE590_2004),
+            ArmInstruction::SingleDataTransferImmediate {
+                condition: 0xE,
+                load: true,
+                byte: false,
+                pre_index: true,
+                add_offset: true,
+                write_back: false,
+                rn: 0,
+                rd: 2,
+                offset: 4,
             }
         );
     }
