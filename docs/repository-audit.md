@@ -47,7 +47,7 @@
 
 ## État de la configuration privée (2026-10-22)
 
-Le workflow et les documents associés existent sur la branche `feature/private-rom-actions`, pas encore sur `main`. La deploy key publique et le secret d'environnement restent à ajouter manuellement ; aucune exécution réelle du workflow privé n'est revendiquée. Voir [docs/private-rom-workflow.md](private-rom-workflow.md).
+Le workflow et les documents associés sont proposés dans la [PR #6](https://github.com/rakmahefa/gbarecomp-rust/pull/6), branche `feature/private-rom-actions`, HEAD observé initialement `905a0726495f7073a58ccb08c090e7af27d9d4c3` (le HEAD courant doit être vérifié après d'éventuelles mises à jour). La PR n'est pas fusionnée dans `main`. La deploy key publique et le secret d'environnement restent à ajouter manuellement ; aucune exécution réelle du workflow privé n'est revendiquée. Voir [docs/private-rom-workflow.md](private-rom-workflow.md).
 
 ## Règle de mise à jour obligatoire
 
