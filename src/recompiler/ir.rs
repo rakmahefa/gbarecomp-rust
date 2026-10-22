@@ -7,10 +7,12 @@ pub enum DataProcessingOpcode {
     And,
     ExclusiveOr,
     Subtract,
+    ReverseSubtract,
     Add,
     Test,
     TestExclusiveOr,
     Compare,
+    CompareNegative,
     Or,
     Move,
     BitClear,
@@ -23,10 +25,12 @@ impl DataProcessingOpcode {
             0 => Self::And,
             1 => Self::ExclusiveOr,
             2 => Self::Subtract,
+            3 => Self::ReverseSubtract,
             4 => Self::Add,
             8 => Self::Test,
             9 => Self::TestExclusiveOr,
             10 => Self::Compare,
+            11 => Self::CompareNegative,
             12 => Self::Or,
             13 => Self::Move,
             14 => Self::BitClear,
@@ -36,12 +40,26 @@ impl DataProcessingOpcode {
     }
 
     pub const fn writes_destination(self) -> bool {
-        !matches!(self, Self::Test | Self::TestExclusiveOr | Self::Compare)
+        !matches!(
+            self,
+            Self::Test | Self::TestExclusiveOr | Self::Compare | Self::CompareNegative
+        )
     }
 
     pub const fn updates_flags_by_definition(self) -> bool {
-        matches!(self, Self::Test | Self::TestExclusiveOr | Self::Compare)
+        matches!(
+            self,
+            Self::Test | Self::TestExclusiveOr | Self::Compare | Self::CompareNegative
+        )
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThumbImmediateOpcode {
+    Move,
+    Compare,
+    Add,
+    Subtract,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -56,7 +74,8 @@ pub enum IrOperation {
         value: u32,
         shifter_carry: Option<bool>,
     },
-    ThumbMoveImmediate {
+    ThumbAluImmediate {
+        operation: ThumbImmediateOpcode,
         rd: u8,
         immediate: u8,
     },
@@ -143,6 +162,9 @@ mod tests {
     fn comparison_operations_do_not_write_registers() {
         assert!(!DataProcessingOpcode::Compare.writes_destination());
         assert!(!DataProcessingOpcode::Test.writes_destination());
+        assert!(!DataProcessingOpcode::CompareNegative.writes_destination());
         assert!(DataProcessingOpcode::Move.writes_destination());
+        assert!(DataProcessingOpcode::ReverseSubtract.writes_destination());
+        assert!(DataProcessingOpcode::CompareNegative.updates_flags_by_definition());
     }
 }

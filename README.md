@@ -8,9 +8,9 @@ L'objectif est d'analyser le code machine ARM7TDMI (ARM et Thumb) d'une ROM GBA,
 
 ## État du projet
 
-Le scaffold Rust/Bevy et le parseur d'en-tête, y compris le champ `entry_branch_opcode`, passent la CI Linux ([run 39749349856](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39749349856), commit `e811b898346d654948266ef3989b4497aef70bad`). La tranche suivante ajoute un objet ROM et le mapping des trois fenêtres Game Pak ; la CI de ce nouvel ajout doit encore le valider.
+Le dépôt ajoute maintenant une première tranche verticale de recompilation **statique** : image ROM et mapping Game Pak, décodeurs ARM/Thumb conservateurs, IR typée, découverte CFG des branches directes et émission de fonctions Rust pour un sous-ensemble étroit. La CLI hors ligne `gbarecomp-recomp` propose `inspect`, `analyze` et `recompile --emit`. La CI du groupe de travail doit encore valider ce code.
 
-Le parseur lit les champs fixes de l'en-tête de 0xC0 octets, expose le mot d'instruction ARM de branchement aux offsets 0..4 (sans prétendre avoir résolu sa destination), et signale la validité du checksum. L'objet `GbaRom` ajoute le mapping d'adresses CPU des fenêtres ROM 0x08/0x0A/0x0C vers des offsets et garde le wait-state dans le résultat. Les tests restent synthétiques ; aucune ROM réelle n'est requise. Le décodeur ARM/Thumb, l'IR, l'émission de fonctions Rust et le modèle matériel ne sont pas encore implémentés. La fenêtre Bevy reste un placeholder et ne représente pas un jeu exécuté.
+Cette tranche sait abaisser les NOP exacts, quelques opérations ARM data-processing immédiates, MOVS/CMP/ADDS/SUBS immédiats Thumb et branches directes/conditionnelles. Toute autre instruction, cible indirecte, code/data overlap ou budget épuisé entraîne un diagnostic et bloque l'émission. Ce n'est **pas** encore un recompilateur complet ou un jeu exécutable : pas de bus/MMIO avec effets, IRQ/DMA, PPU/audio, fonctions de support complètes, résolution exhaustive code/données ou runtime généré relié à la scène Bevy. Les tests utilisent des ROM synthétiques ; aucune ROM réelle n'est requise.
 
 ## Références
 
@@ -19,7 +19,7 @@ Le parseur lit les champs fixes de l'en-tête de 0xC0 octets, expose le mot d'in
 
 ## Développement Linux
 
-Voir [le guide de développement](docs/development.md), [l'architecture](docs/architecture.md), [les décisions](docs/decisions/ADR-0001-static-rust-recompilation.md) et [les workflows](docs/workflows.md). Bevy est épinglé à `0.20.0`, et `rust-toolchain.toml` fixe Rust à `1.98.1`.
+Voir [le guide de développement](docs/development.md), [l'architecture](docs/architecture.md), [l'audit de référence](reference-audit.md), [les décisions](docs/decisions/ADR-0001-static-rust-recompilation.md) et [les workflows](docs/workflows.md). Bevy est épinglé à `0.20.0`, et `rust-toolchain.toml` fixe Rust à `1.98.1`.
 
 La ROM de développement doit être fournie localement et rester ignorée par Git. Une ROM, un BIOS, une sauvegarde ou des données dérivées ne doivent jamais être inclus dans les artefacts ou releases.
 

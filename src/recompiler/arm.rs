@@ -70,17 +70,17 @@ pub fn decode(word: u32) -> ArmInstruction {
     // Data-processing class with a rotated 8-bit immediate operand only.
     if word & 0x0C00_0000 == 0 && word & (1 << 25) != 0 {
         let opcode = ((word >> 21) & 0x0F) as u8;
-        if !matches!(opcode, 0 | 1 | 2 | 4 | 8 | 9 | 10 | 12 | 13 | 14 | 15) {
+        if !matches!(opcode, 0..=4 | 8..=15) {
             return ArmInstruction::Unsupported;
         }
 
         let immediate = word & 0xFF;
-        let rotation = ((word >> 8) & 0x0F) as u32 * 2;
+        let rotation = ((word >> 8) & 0x0F) * 2;
         let value = immediate.rotate_right(rotation);
         return ArmInstruction::DataProcessingImmediate {
             condition,
             opcode,
-            set_flags: word & (1 << 20) != 0 || matches!(opcode, 8 | 9 | 10),
+            set_flags: word & (1 << 20) != 0 || matches!(opcode, 8..=11),
             rn: ((word >> 16) & 0x0F) as u8,
             rd: ((word >> 12) & 0x0F) as u8,
             value,
@@ -119,6 +119,34 @@ mod tests {
                 rd: 0,
                 value: 0x4000_0000,
                 shifter_carry: Some(false),
+            }
+        );
+    }
+
+    #[test]
+    fn decodes_reverse_subtract_and_compare_negative() {
+        assert_eq!(
+            decode(0xE260_0001),
+            ArmInstruction::DataProcessingImmediate {
+                condition: 0xE,
+                opcode: 3,
+                set_flags: false,
+                rn: 0,
+                rd: 0,
+                value: 1,
+                shifter_carry: None,
+            }
+        );
+        assert_eq!(
+            decode(0xE370_0001),
+            ArmInstruction::DataProcessingImmediate {
+                condition: 0xE,
+                opcode: 11,
+                set_flags: true,
+                rn: 0,
+                rd: 0,
+                value: 1,
+                shifter_carry: None,
             }
         );
     }

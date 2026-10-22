@@ -18,7 +18,7 @@ Le guide amont contient un parcours C++/CMake/Windows ; il ne décrit pas le bui
 
 **Différence explicite :** ce projet émet du **Rust** à compiler avant distribution. Les mécanismes amont d'interpréteur/résolution dynamique en runtime ne sont pas adoptés ; les inconnues statiques deviennent des erreurs explicites jusqu'à l'implémentation d'un traitement statique correct.
 
-**Licence :** le dépôt amont indique PolyForm Noncommercial 1.0.0. Étudier ses comportements n'accorde pas le droit de copier son code. Voir [audit.md](../audit.md).
+**Licence :** le dépôt amont indique PolyForm Noncommercial 1.0.0. Étudier ses comportements n'accorde pas le droit de copier son code. Voir [audit.md](../audit.md) et [l'audit de portage](../reference-audit.md) pour les priorités et les limites de réutilisation.
 
 ## REA — outil d'analyse inverse
 

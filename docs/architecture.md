@@ -8,12 +8,22 @@ Analyser le code machine ARM7TDMI (ARM et Thumb) d'une ROM GBA et générer du *
 
 La référence [mstan/gbarecomp](https://github.com/mstan/gbarecomp) sert à étudier les fonctions, les frontières CPU/matériel et les cas de fidélité. Son implémentation C++ et sa licence PolyForm Noncommercial restent distinctes. Ses chemins de repli à l'exécution ne font pas partie de l'architecture cible de ce projet.
 
+## État réellement implémenté
+
+Le code contient désormais une première tranche pour le chargement d'une image fournie en mémoire, le mapping des trois fenêtres Game Pak, le décodage conservateur de familles ARM/Thumb, une IR typée, le parcours depuis l'instruction de branchement du header et un émetteur de source Rust. Le CLI correspondant est `gbarecomp-recomp`.
+
+L'émetteur est volontairement limité : NOP ARM exact, opérations ARM data-processing à immédiat prises en charge, dont RSB et CMN, MOVS/CMP/ADDS/SUBS immédiats Thumb, branchements directs et conditionnels. Il bloque la sortie dès qu'une cible ou une instruction ne peut pas être résolue par cette tranche. Il ne modélise pas encore les effets mémoire ni les périphériques GBA, et la sortie émise n'est pas intégrée à un exécutable de jeu/Bevy. Les tests du générateur compilent et exécutent une fixture synthétique.
+
+### Couverture d'opérations immédiates
+
+Le sous-ensemble natif prend en charge RSB et CMN dans la classe ARM data-processing immédiate; pour Thumb, le décodeur, l'IR et l'émetteur couvrent MOVS, CMP, ADDS et SUBS immédiats. CMN/CMP préservent le registre testé et produisent les flags attendus; RSB calcule Operand2 - Rn. La CI compile et exécute une fixture synthétique de code généré, y compris un cas de PC ARM visible (+8). Cette couverture partielle ne démontre pas la compatibilité d'un jeu complet.
+
 ## Couches proposées
 
 1. **En-tête et identification de cartouche** — le parseur lit l'en-tête fixe GBA de 0xC0 octets, expose le mot d'instruction ARM de branchement aux offsets 0..4 (pas la destination déjà résolue) et les champs de titre/code/maker/version, puis calcule le complement checksum. L'objet `GbaRom` conserve les octets et mappe les trois fenêtres Game Pak 0x08/0x0A/0x0C vers des offsets ; l'identité de la fenêtre wait-state reste disponible. Un checksum incohérent est actuellement signalé comme métadonnée diagnostique ; les politiques de rejet relèveront d'une étape de validation ultérieure. Le hash de l'image, l'analyse des fonctions et les régions non-ROM de la cartographie complète restent à implémenter. Voir [la carte mémoire GBA](https://gbadev.net/gbadoc/memory.html).
-2. **Analyse statique ARM/Thumb** — découverte du code et des blocs, état ARM/Thumb, branches, appels, tables littérales, données vs code et cibles indirectes résolues. Les hypothèses doivent être traçables.
-3. **IR et validation sémantique** — représentation intermédiaire indépendante de Bevy ; sémantique des flags, conditions, shifter, effets mémoire et contrat d'appel. Tests sur cas isolés avant émission native.
-4. **Émission Rust** — génération lisible et reproductible des fonctions Rust. La sortie est compilée par Cargo/rustc pendant la construction, avant livraison ou lancement du jeu recompilé.
+2. **Analyse statique ARM/Thumb** — une découverte initiale couvre déjà branches directes/conditionnelles et certaines instructions immédiates. Les appels indirects, tables, fonctions, pointeurs code, code/data overlap avancé et interworking complet restent à développer.
+3. **IR et validation sémantique** — l'IR couvre actuellement NOP, opérations ARM immédiates choisies et MOVS/CMP/ADDS/SUBS Thumb immédiats. Les opérations de registres, décalages, accès mémoire, exceptions et modèle complet des flags doivent être ajoutés avec tests.
+4. **Émission Rust** — l'émetteur natif génère actuellement des fonctions de blocs autonomes pour le sous-ensemble validé et une table de dispatch statique ; un test compile puis exécute le Rust généré. Le lien au modèle matériel et au build de distribution d'un jeu reste à faire.
 5. **Bus et modèle matériel GBA** — carte mémoire, registres E/S, IRQ, DMA, timers, PPU, audio, entrée et sauvegardes. Les effets suivent les contrats matériels documentés.
 6. **Runtime hôte Bevy** — ordonnance l'application et présente l'image/audio produits par le modèle matériel. La surface de présentation reste distincte de l'état matériel canonique.
 7. **Validation différentielle** — jeux de tests ARM/Thumb, traces reproductibles et comparaison des effets observables avec un oracle documenté.

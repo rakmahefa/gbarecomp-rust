@@ -8,6 +8,7 @@ use std::fmt::Write as _;
 use super::RecompileError;
 use super::ir::{
     AnalysisReport, BasicBlock, BlockTerminator, DataProcessingOpcode, IrInstruction, IrOperation,
+    ThumbImmediateOpcode,
 };
 
 /// Emit a standalone Rust module containing statically specialized block functions.
@@ -69,8 +70,13 @@ pub enum Flow {
 
 const N: u32 = 1 << 31;
 const Z: u32 = 1 << 30;
+const T: u32 = 1 << 5;
 const C: u32 = 1 << 29;
 const V: u32 = 1 << 28;
+
+fn set_thumb(state: &mut RecompiledState, thumb: bool) {
+    state.cpsr = (state.cpsr & !T) | if thumb { T } else { 0 };
+}
 
 fn condition_passed(cpsr: u32, condition: u8) -> bool {
     let n = cpsr & N != 0;
@@ -164,6 +170,8 @@ fn emit_block(output: &mut String, block: &BasicBlock) -> Result<(), RecompileEr
         "\nfn block_{:08X}_{}(state: &mut RecompiledState) -> Result<Flow, &'static str> {{",
         block.start, suffix
     );
+    let thumb = block.instruction_set == super::InstructionSet::Thumb;
+    let _ = writeln!(output, "    set_thumb(state, {thumb});");
 
     for instruction in &block.instructions {
         emit_instruction(output, instruction)?;
@@ -182,12 +190,36 @@ fn emit_instruction(
         IrOperation::Nop => {
             let _ = writeln!(output, "    // NOP at 0x{:08X}", instruction.address);
         }
-        IrOperation::ThumbMoveImmediate { rd, immediate } => {
-            let _ = writeln!(
-                output,
-                "    state.regs[{rd}] = {immediate};\n    update_nz(state, state.regs[{rd}]);"
-            );
-        }
+        IrOperation::ThumbAluImmediate {
+            operation,
+            rd,
+            immediate,
+        } => match operation {
+            ThumbImmediateOpcode::Move => {
+                let _ = writeln!(
+                    output,
+                    "    state.regs[{rd}] = {immediate};\n    update_nz(state, state.regs[{rd}]);"
+                );
+            }
+            ThumbImmediateOpcode::Compare => {
+                let _ = writeln!(
+                    output,
+                    "    let lhs = state.regs[{rd}];\n    let rhs = {immediate}_u32;\n    let result = lhs.wrapping_sub(rhs);\n    update_sub_flags(state, lhs, rhs, result);"
+                );
+            }
+            ThumbImmediateOpcode::Add => {
+                let _ = writeln!(
+                    output,
+                    "    let lhs = state.regs[{rd}];\n    let rhs = {immediate}_u32;\n    let result = lhs.wrapping_add(rhs);\n    state.regs[{rd}] = result;\n    update_add_flags(state, lhs, rhs, result);"
+                );
+            }
+            ThumbImmediateOpcode::Subtract => {
+                let _ = writeln!(
+                    output,
+                    "    let lhs = state.regs[{rd}];\n    let rhs = {immediate}_u32;\n    let result = lhs.wrapping_sub(rhs);\n    state.regs[{rd}] = result;\n    update_sub_flags(state, lhs, rhs, result);"
+                );
+            }
+        },
         IrOperation::ArmDataProcessingImmediate {
             condition,
             opcode,
@@ -201,7 +233,12 @@ fn emit_instruction(
                 output,
                 "    if condition_passed(state.cpsr, {condition}) {{"
             );
-            let _ = writeln!(output, "        let lhs = state.regs[{rn}];");
+            let lhs_expression = if *rn == 15 {
+                format!("0x{:08X}_u32", instruction.address.wrapping_add(8))
+            } else {
+                format!("state.regs[{rn}]")
+            };
+            let _ = writeln!(output, "        let lhs = {lhs_expression};");
             let _ = writeln!(output, "        let rhs = 0x{value:08X}_u32;");
             let expression = match opcode {
                 DataProcessingOpcode::And | DataProcessingOpcode::Test => "lhs & rhs",
@@ -211,7 +248,10 @@ fn emit_instruction(
                 DataProcessingOpcode::Subtract | DataProcessingOpcode::Compare => {
                     "lhs.wrapping_sub(rhs)"
                 }
-                DataProcessingOpcode::Add => "lhs.wrapping_add(rhs)",
+                DataProcessingOpcode::ReverseSubtract => "rhs.wrapping_sub(lhs)",
+                DataProcessingOpcode::Add | DataProcessingOpcode::CompareNegative => {
+                    "lhs.wrapping_add(rhs)"
+                }
                 DataProcessingOpcode::Or => "lhs | rhs",
                 DataProcessingOpcode::Move => "rhs",
                 DataProcessingOpcode::BitClear => "lhs & !rhs",
@@ -225,13 +265,17 @@ fn emit_instruction(
 
             if *set_flags || opcode.updates_flags_by_definition() {
                 match opcode {
-                    DataProcessingOpcode::Add => {
+                    DataProcessingOpcode::Add | DataProcessingOpcode::CompareNegative => {
                         let _ =
                             writeln!(output, "        update_add_flags(state, lhs, rhs, result);");
                     }
                     DataProcessingOpcode::Subtract | DataProcessingOpcode::Compare => {
                         let _ =
                             writeln!(output, "        update_sub_flags(state, lhs, rhs, result);");
+                    }
+                    DataProcessingOpcode::ReverseSubtract => {
+                        let _ =
+                            writeln!(output, "        update_sub_flags(state, rhs, lhs, result);");
                     }
                     _ => {
                         let carry = match shifter_carry {
@@ -274,7 +318,10 @@ fn emit_terminator(output: &mut String, block: &BasicBlock) -> Result<(), Recomp
             fallthrough,
         } => {
             let thumb = instruction_set == super::InstructionSet::Thumb;
-            let _ = writeln!(output, "    if condition_passed(state.cpsr, {condition}) {{");
+            let _ = writeln!(
+                output,
+                "    if condition_passed(state.cpsr, {condition}) {{"
+            );
             if link {
                 let _ = writeln!(output, "        state.regs[14] = 0x{return_address:08X};");
             }
@@ -311,7 +358,10 @@ fn emit_terminator(output: &mut String, block: &BasicBlock) -> Result<(), Recomp
             instruction_set,
         } => {
             let thumb = instruction_set == super::InstructionSet::Thumb;
-            let _ = writeln!(output, "    if condition_passed(state.cpsr, {condition}) {{");
+            let _ = writeln!(
+                output,
+                "    if condition_passed(state.cpsr, {condition}) {{"
+            );
             let _ = writeln!(output, "        state.regs[15] = 0x{target:08X};");
             let _ = writeln!(
                 output,
@@ -385,20 +435,36 @@ mod tests {
                 BasicBlock {
                     start: 0x0800_0000,
                     instruction_set: InstructionSet::Arm,
-                    instructions: vec![IrInstruction {
-                        address: 0x0800_0000,
-                        raw: 0xE3A0_0001,
-                        instruction_set: InstructionSet::Arm,
-                        operation: IrOperation::ArmDataProcessingImmediate {
-                            condition: 0xE,
-                            opcode: DataProcessingOpcode::Move,
-                            set_flags: false,
-                            rn: 0,
-                            rd: 0,
-                            value: 1,
-                            shifter_carry: None,
+                    instructions: vec![
+                        IrInstruction {
+                            address: 0x0800_0000,
+                            raw: 0xE3A0_0001,
+                            instruction_set: InstructionSet::Arm,
+                            operation: IrOperation::ArmDataProcessingImmediate {
+                                condition: 0xE,
+                                opcode: DataProcessingOpcode::Move,
+                                set_flags: false,
+                                rn: 0,
+                                rd: 0,
+                                value: 1,
+                                shifter_carry: None,
+                            },
                         },
-                    }],
+                        IrInstruction {
+                            address: 0x0800_0004,
+                            raw: 0xE28F_1000,
+                            instruction_set: InstructionSet::Arm,
+                            operation: IrOperation::ArmDataProcessingImmediate {
+                                condition: 0xE,
+                                opcode: DataProcessingOpcode::Add,
+                                set_flags: false,
+                                rn: 15,
+                                rd: 1,
+                                value: 0,
+                                shifter_carry: None,
+                            },
+                        },
+                    ],
                     terminator: BlockTerminator::Branch {
                         condition: 0xE,
                         target: 0x0800_0008,
@@ -419,34 +485,109 @@ mod tests {
                     }],
                     terminator: BlockTerminator::Exit,
                 },
+                BasicBlock {
+                    start: 0x0800_0010,
+                    instruction_set: InstructionSet::Thumb,
+                    instructions: vec![
+                        IrInstruction {
+                            address: 0x0800_0010,
+                            raw: 0x2205,
+                            instruction_set: InstructionSet::Thumb,
+                            operation: IrOperation::ThumbAluImmediate {
+                                operation: ThumbImmediateOpcode::Move,
+                                rd: 2,
+                                immediate: 5,
+                            },
+                        },
+                        IrInstruction {
+                            address: 0x0800_0012,
+                            raw: 0x3203,
+                            instruction_set: InstructionSet::Thumb,
+                            operation: IrOperation::ThumbAluImmediate {
+                                operation: ThumbImmediateOpcode::Add,
+                                rd: 2,
+                                immediate: 3,
+                            },
+                        },
+                        IrInstruction {
+                            address: 0x0800_0014,
+                            raw: 0x2A08,
+                            instruction_set: InstructionSet::Thumb,
+                            operation: IrOperation::ThumbAluImmediate {
+                                operation: ThumbImmediateOpcode::Compare,
+                                rd: 2,
+                                immediate: 8,
+                            },
+                        },
+                    ],
+                    terminator: BlockTerminator::Exit,
+                },
             ],
             diagnostics: vec![],
-            instruction_count: 3,
+            instruction_count: 6,
             instruction_limit: 100,
             reached_instruction_limit: false,
         };
-        let source = emit_rust_source(&report).expect("valid IR should emit Rust");
+        let mut source = emit_rust_source(&report).expect("valid IR should emit Rust");
+        source.push_str(
+            r#"
+#[test]
+fn generated_mov_and_branch_execute_natively() {
+    let mut state = RecompiledState::default();
+    assert_eq!(
+        execute_block(0x0800_0000, false, &mut state),
+        Ok(Flow::Branch { target: 0x0800_0008, thumb: false })
+    );
+    assert_eq!(state.regs[0], 1);
+    // ARM's visible PC operand is the address of the ADD instruction + 8.
+    assert_eq!(state.regs[1], 0x0800_000C);
+    assert_eq!(state.regs[15], 0x0800_0008);
+    assert_eq!(state.cpsr & T, 0);
+    assert_eq!(
+        execute_block(0x0800_0008, false, &mut state),
+        Ok(Flow::Exit)
+    );
+    assert_eq!(
+        execute_block(0x0800_0010, true, &mut state),
+        Ok(Flow::Exit)
+    );
+    assert_eq!(state.regs[2], 8);
+    assert_ne!(state.cpsr & Z, 0);
+    assert_ne!(state.cpsr & C, 0);
+    assert_ne!(state.cpsr & T, 0);
+}
+"#,
+        );
 
         let temp = std::env::temp_dir();
         let stem = format!("gbarecomp-generated-smoke-{}", std::process::id());
         let source_path = temp.join(format!("{stem}.rs"));
-        let library_path = temp.join(format!("lib{stem}.rlib"));
+        let binary_path = temp.join(stem);
         std::fs::write(&source_path, source).expect("write generated source");
-        let output = Command::new("rustc")
+        let compile = Command::new("rustc")
+            .arg("--crate-name")
+            .arg("gbarecomp_generated_smoke")
             .arg("--edition=2024")
-            .arg("--crate-type=lib")
+            .arg("--test")
             .arg(&source_path)
             .arg("-o")
-            .arg(&library_path)
+            .arg(&binary_path)
             .output()
             .expect("rustc must be installed in the Cargo test environment");
-        let _ = std::fs::remove_file(&source_path);
-        let _ = std::fs::remove_file(&library_path);
-
         assert!(
-            output.status.success(),
+            compile.status.success(),
             "generated Rust failed to compile:\n{}",
-            String::from_utf8_lossy(&output.stderr)
+            String::from_utf8_lossy(&compile.stderr)
+        );
+        let execute = Command::new(&binary_path)
+            .output()
+            .expect("execute generated native test binary");
+        let _ = std::fs::remove_file(&source_path);
+        let _ = std::fs::remove_file(&binary_path);
+        assert!(
+            execute.status.success(),
+            "generated Rust semantics failed:\n{}",
+            String::from_utf8_lossy(&execute.stdout)
         );
     }
 }
