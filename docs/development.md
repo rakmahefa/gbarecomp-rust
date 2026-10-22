@@ -50,6 +50,12 @@ cargo run --locked --bin gbarecomp-recomp -- recompile rom/testrom.gba --emit ta
 
 `analyze` affiche les blocs détectés et les diagnostics. `recompile` ne produit le fichier qu'en absence de diagnostic et refuse d'écraser un fichier existant. La tranche actuelle émet un sous-ensemble ARM/Thumb limité ; elle ne prétend pas supporter un jeu complet. Les erreurs pour instruction inconnue, branche indirecte, cible non résolue ou chevauchement code/données sont intentionnelles : il n'y a aucun interpréteur ou JIT de secours. Avant d'étendre le décodeur ARM, corriger et tester le rejet des encodages avec condition `0xF` avant les masques BX/SWI (PR #5 fermée non fusionnée).
 
+## GitHub Actions et dépôt privé de ROM
+
+Le dépôt privé `rakmahefa/roms` est consommé uniquement par le workflow manuel **Private ROM audit (manual)**. Pour configurer la clé de déploiement en lecture seule et le secret d'environnement `ROMS_DEPLOY_KEY`, suivre [la procédure complète](private-rom-workflow.md). Le workflow accepte un lancement depuis `main` uniquement et n'utilise pas la ROM dans les workflows de release.
+
+Le workflow actuel exécute seulement l'inspection de l'en-tête et une analyse ARM/Thumb bornée. Il ne sait pas compiler le jeu Emerald complet, et il ne conserve pas les sorties détaillées dans un artefact public. Pour une inspection REA détaillée de code invité ou de données dérivées, utiliser un espace privé jusqu'à ce qu'une destination de rapport privée soit définie.
+
 ## Parseur d'en-tête et ROM locale
 
 Le parseur actuel inspecte les champs fixes du header de 0xC0 octets, expose le mot d'instruction ARM de branchement aux offsets 0..4 (pas sa destination résolue) et rapporte si le complement checksum correspond. `GbaRom` mappe les trois fenêtres Game Pak CPU vers les offsets de fichier et conserve la fenêtre wait-state. Une taille ROM puissance de deux utilise un masque pour les alias ; une taille non puissance de deux hors fichier est rejetée explicitement. Ces règles de mapping sont une première tranche à valider, pas un modèle matériel complet. Les tests n'utilisent que des images synthétiques ; aucune ROM réelle n'est requise.
