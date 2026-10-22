@@ -52,15 +52,15 @@ L'inventaire fichier par fichier se trouve dans [docs/repository-audit.md](docs/
 
 ### A-07 — Cargo.lock ne correspondait pas au manifeste actif
 
-**Sévérité : moyenne — corrigé dans la branche, validation en cours.**
+**Sévérité : moyenne — résolu et validé par la CI.**
 
-Le run CI `39745465091` a passé le garde-fou ROM et `cargo fmt --check`, puis Clippy a échoué avec le message indiquant que `Cargo.lock` devait être actualisé malgré `--locked`. Le lockfile initial avait été adapté depuis un projet Bevy plus large dont le graphe actif ne correspondait pas exactement à notre manifeste 2D minimal. Il est remplacé par un lockfile Cargo généré pour un profil Bevy `0.20.0` avec la feature `2d` seule, et le package racine est renommé pour ce projet. La nouvelle CI doit confirmer que Cargo accepte ce lockfile avec `--locked` ; ne pas lever le verrou pour faire passer la CI.
+Le run CI `39745465091` a révélé que le lockfile initial, adapté depuis un projet Bevy plus large, ne correspondait pas exactement au manifeste 2D minimal. Le lockfile a été remplacé par une résolution générée pour Bevy `0.20.0` avec la feature `2d` seule. Le run [CI `39746308189`](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746308189) a ensuite réussi avec `--locked` ; ne pas lever ce verrou pour contourner une future divergence.
 
 ### A-08 — Construction de l'application Bevy avec type de retour incorrect
 
-**Sévérité : moyenne — correctif soumis, CI en attente.**
+**Sévérité : moyenne — résolu et validé par la CI.**
 
-Le run `39745818857` a passé le garde-fou ROM, `cargo fmt` et la résolution du lockfile, puis la compilation a détecté que la chaîne `App::new().add_plugins(...).insert_resource(...).add_systems(...)` retournait `&mut App` plutôt que `App` comme annoncé par `build_app()`. Le builder est réécrit pour configurer une variable locale puis retourner explicitement `App`. Le prochain run doit confirmer la compilation, Clippy et les tests.
+Le run `39745818857` a trouvé que la chaîne de configuration Bevy renvoyait `&mut App` plutôt que `App`. `build_app()` configure maintenant une variable locale et retourne explicitement l'application. Le run [CI `39746308189`](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746308189) passe le formatage, Clippy et les tests.
 
 ## Références de workflows
 

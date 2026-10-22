@@ -37,16 +37,18 @@ Le projet analyse du code GBA ARM7TDMI (ARM/Thumb) et **génère du code source 
 - Le run push `39744961191` s'est terminé immédiatement en échec avec nom de workflow `.github/workflows/ci.yml` et sans jobs : la version de workflow sur la branche était syntaxiquement corrompue. Le contenu de `.github/workflows/ci.yml` a été réécrit proprement.
 - Le run PR `39745275263` a chargé le workflow, passé le filtre ROM, installé les dépendances Linux et Rust, puis échoué sur `cargo fmt --check` pour deux diffs dans `src/recompiler/mod.rs` et `src/runtime.rs`. Ces diffs sont corrigés.
 - Le run PR `39745465091` a ensuite passé le filtre ROM et le formatage, puis Clippy a échoué : `Cargo.lock` nécessitait une mise à jour sous `--locked`. Le lockfile est remplacé par une résolution générée pour Bevy 0.20 feature `2d` seule.
-- Le run PR `39745818857` a passé filtre ROM, formatage et résolution du lockfile, puis la compilation a détecté que `build_app()` retournait indirectement `&mut App`. Le builder est corrigé dans le commit courant ; Clippy/tests n'ont pas atteint leur fin et doivent être rejoués.
+- Le run PR `39745818857` a passé filtre ROM, formatage et résolution du lockfile, puis la compilation a détecté que `build_app()` retournait indirectement `&mut App`. Le builder a été corrigé dans le commit `bcd0b8f8c124b6cc9a5ae61357fe245120817183`.
+- **Validation réussie :** le run CI `39746308189` sur ce commit a passé le filtre ROM, `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings` et `cargo test --workspace --all-features --locked`. Clippy et les tests sont donc validés pour le scaffold actuel.
+- Le workflow Build (Linux) est volontairement ignoré pour l'événement PR ; le build release, le packaging et l'artefact REA restent à confirmer sur un push à `main` après fusion.
 - Aucun build local n'a été exécuté dans l'environnement de préparation ; il ne disposait pas de Cargo/rustc.
 - Le lockfile Bevy a été basé sur une résolution Cargo existante de Bevy 0.20 et adapté au package du projet ; **il faut le laisser à la CI avec `--locked`**. Toute erreur du resolver doit être corrigée via Cargo puis le nouveau lockfile commité.
-- Le runtime ne fait qu'ouvrir une fenêtre Bevy et afficher une forme de remplacement ; pas de chargement ROM, décodeur ARM/Thumb, IR, émetteur Rust ou modèle matériel encore.
+- Le runtime configure une fenêtre Bevy et une forme de remplacement ; le lancement interactif n'a pas encore été testé localement. Aucun chargement ROM, décodeur ARM/Thumb, IR, émetteur Rust ou modèle matériel n'est encore implémenté.
 
 ## Prochaine étape
 
-1. Confirmer que le run CI de PR parse le workflow et passe le garde-fou ROM.
-2. Corriger le lockfile/API/formattage/Clippy selon le vrai résultat de CI.
-3. Une fois le scaffold validé, ajouter le parseur d'en-tête GBA et une carte des régions ROM.
-4. Puis ajouter un ensemble limité d'instructions ARM/Thumb et des tests qui valident l'émission Rust et ses effets. Aucune de ces étapes ne doit ajouter un interpréteur/JIT.
+1. Après fusion, confirmer que Build (Linux) produit le binaire de distribution et l'entrée REA depuis le même build release, sans inclure la ROM.
+2. Ajouter le parseur d'en-tête GBA et la cartographie des régions ROM avec des tests sur fixtures non propriétaires.
+3. Définir une IR ARM/Thumb testable, puis implémenter des traductions limitées et générer du code Rust que Cargo compile comme étape de build.
+4. Ajouter des tests différentiels pour la sémantique de l'IR et des effets matériels. Aucune de ces étapes ne doit ajouter un interpréteur/JIT.
 
 Chaque commit de clôture de groupe doit mettre à jour ce handoff.
