@@ -60,11 +60,11 @@ Le run `39745818857` a détecté que la chaîne de configuration Bevy retournait
 
 ### A-09 — Parseur de l'en-tête GBA : périmètre limité
 
-**État : implémenté dans la branche ; validation CI en cours après correction de formatage.**
+**État : implémenté et validé par la CI Linux.**
 
 Le parseur vérifie qu'au moins 0xC0 octets sont disponibles, extrait le point d'entrée et les champs fixes, expose les octets de titre/code/maker sans les normaliser et signale le complement checksum calculé. Le checksum incohérent est une information diagnostique et ne fait pas échouer le parsing structurel. Les tests utilisent uniquement une fixture synthétique, jamais la ROM de développement.
 
-Le premier run CI du parseur (`39747920168`) a échoué uniquement sur `cargo fmt --check`, qui demandait de réordonner la liste `pub use` dans `src/rom/mod.rs`. Le correctif applique exactement cet ordre ; Clippy et les tests n'ont pas été atteints sur ce run et restent à revalider.
+Le premier run CI du parseur (`39747920168`) a échoué uniquement sur `cargo fmt --check`, qui demandait de réordonner la liste `pub use` dans `src/rom/mod.rs`. Le correctif a été validé par [le run CI `39748310841`](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39748310841) au commit `c96edb7bed71ba14f09bb857160d09621a9d849e` : formatage, Clippy et tests passent.
 
 Ce composant ne doit ni interpréter des instructions, ni exécuter du contenu ROM, ni déclencher une compilation de code invité. L'analyse et la génération de code restent des étapes statiques de build qui viendront plus tard.
 
