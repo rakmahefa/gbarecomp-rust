@@ -108,6 +108,7 @@ pub struct AnalysisReport {
     pub blocks: Vec<BasicBlock>,
     pub diagnostics: Vec<RecompileError>,
     pub instruction_count: usize,
+    pub instruction_limit: usize,
     pub reached_instruction_limit: bool,
 }
 
@@ -116,10 +117,13 @@ impl AnalysisReport {
         self.diagnostics.is_empty() && !self.reached_instruction_limit && !self.blocks.is_empty()
     }
 
-    pub fn first_error(&self, limit: usize) -> Option<RecompileError> {
+    pub fn first_error(&self) -> Option<RecompileError> {
         self.diagnostics.first().cloned().or_else(|| {
-            self.reached_instruction_limit
-                .then_some(RecompileError::InstructionLimitReached { limit })
+            self.reached_instruction_limit.then_some(
+                RecompileError::InstructionLimitReached {
+                    limit: self.instruction_limit,
+                },
+            )
         })
     }
 }
