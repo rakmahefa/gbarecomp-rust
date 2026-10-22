@@ -8,9 +8,11 @@ L'objectif est d'analyser le code machine ARM7TDMI (ARM et Thumb) d'une ROM GBA,
 
 ## État du projet
 
-Le dépôt ajoute maintenant une première tranche verticale de recompilation **statique** : image ROM et mapping Game Pak, décodeurs ARM/Thumb conservateurs, IR typée, découverte CFG des branches directes et émission de fonctions Rust pour un sous-ensemble étroit. La CLI hors ligne `gbarecomp-recomp` propose `inspect`, `analyze` et `recompile --emit`. La CI du groupe de travail doit encore valider ce code.
+La PR #4 a été fusionnée dans `main` au commit `fe9e1df5b74ccb686723adeea495419249e08d2f`. Elle apporte une première tranche verticale de recompilation **statique** : image ROM et mapping Game Pak, décodeurs ARM/Thumb conservateurs, IR typée, découverte CFG des branches directes et émission de fonctions Rust pour un sous-ensemble étroit. La CLI hors ligne `gbarecomp-recomp` propose `inspect`, `analyze` et `recompile --emit`. La validation post-fusion est suivie dans [GitHub Actions](https://github.com/rakmahefa/gbarecomp-rust/actions).
 
-Cette tranche sait abaisser les NOP exacts, quelques opérations ARM data-processing immédiates, MOVS/CMP/ADDS/SUBS immédiats Thumb et branches directes/conditionnelles. Toute autre instruction, cible indirecte, code/data overlap ou budget épuisé entraîne un diagnostic et bloque l'émission. Ce n'est **pas** encore un recompilateur complet ou un jeu exécutable : pas de bus/MMIO avec effets, IRQ/DMA, PPU/audio, fonctions de support complètes, résolution exhaustive code/données ou runtime généré relié à la scène Bevy. Les tests utilisent des ROM synthétiques ; aucune ROM réelle n'est requise.
+Cette tranche sait abaisser les NOP exacts, un sous-ensemble ARM data-processing immédiat (dont RSB/CMN), MOVS/CMP/ADDS/SUBS immédiats Thumb et branches directes/conditionnelles. Toute autre instruction, cible indirecte, code/data overlap ou budget épuisé entraîne un diagnostic et bloque l'émission. Ce n'est **pas** encore un recompilateur complet ou un jeu exécutable : le bus/MMIO, IRQ/DMA, PPU/audio, la résolution exhaustive code/données et le runtime généré relié à Bevy restent à construire. Les tests utilisent des ROM synthétiques ; aucune ROM réelle n'est requise.
+
+**Point de reprise connu :** la PR #5 a été fermée sans fusion. Son correctif qui rejette la condition ARM `0xF` avant les masques BX/SWI n'est donc pas dans `main`. Voir [SESSION_HANDOFF.md](SESSION_HANDOFF.md) : ce bug de décodage doit être traité avant d'étendre la couverture ARM.
 
 ## Références
 
