@@ -16,7 +16,7 @@ Le README et le guide d'architecture décrivent une recompilation statique ARM/T
 
 Le guide Getting started actuel du dépôt référence un chemin C++/CMake/Windows. Ne pas copier ses commandes comme si elles constituaient un build Rust/Linux. Le modèle de couche et les problèmes de fidélité sont pertinents ; l'outillage doit être adapté séparément.
 
-**Licence :** le dépôt indique PolyForm Noncommercial 1.0.0. Étudier les documents et tester les comportements n'équivaut pas à obtenir le droit de copier le code source. Voir [audit.md](../audit.md).
+**Licence :** le dépôt indique PolyForm Noncommercial 1.0.0. Toute adaptation directe doit rester dans les limites de cette licence ou être couverte par une autorisation distincte. Voir [reference-audit.md](../reference-audit.md) pour le plan de portage détaillé.
 
 ## REA — outil d'analyse inverse
 
