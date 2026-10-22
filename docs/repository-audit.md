@@ -11,7 +11,7 @@
 | --- | --- | --- | --- |
 | `.gitignore` | Exclut `target/`, sorties locales, analyses REA et ROM ; permet de garder uniquement `rom/README.md`. | En place | Un nouvel outil ou une sortie générée crée des fichiers locaux. |
 | `Cargo.toml` | Manifeste du crate hôte. Bevy exactement `=0.20.0`, feature set initial 2D. | Squelette compilable attendu par CI | Dépendances/features ou structure du workspace changent. |
-| `Cargo.lock` | Verrouille le graphe de dépendances, utilisé avec `--locked`. | Présent ; doit être vérifié par CI | Cargo.toml ou les dépendances changent. Ne jamais éditer manuellement. |
+| `Cargo.lock` | Verrouille le graphe de dépendances, utilisé avec `--locked`. | Remplacé par une résolution Bevy 0.20 feature `2d` ; la CI doit confirmer sa cohérence exacte. | Cargo.toml ou les dépendances changent. Générer avec Cargo, jamais l'éditer manuellement. |
 | `rust-toolchain.toml` | Épingle Rust `1.98.1` et les composants rustfmt/Clippy. | En place | MSRV, Bevy ou images de runners changent. |
 | `src/main.rs` | Point d'entrée : démarre le runtime Bevy. | Squelette | Le lancement ou l'initialisation globale change. |
 | `src/lib.rs` | Expose les modules de runtime et de recompilation. | Squelette | Les couches du crate ou les API publiques changent. |
@@ -27,7 +27,7 @@
 | `docs/rea.md` | Bundle REA, procédure et limite entre packaging et analyse interactive. | En place | Version REA, dépendances ou format de bundle changent. |
 | `docs/reference-projects.md` | Références GBARecomp et REA, différences techniques et limites de licence. | En place | Les dépôts, licences ou méthodes pertinentes changent. |
 | `docs/decisions/ADR-0001-static-rust-recompilation.md` | Décision contraignante : émettre du Rust et le compiler avant lancement ; pas d'interpréteur/JIT. | Accepté | Un changement proposé toucherait le contrat statique ; toute modification doit être une décision explicite. |
-| `.github/workflows/ci.yml` | Vérifie le patch, bloque les ROM suivies, installe les bibliothèques Linux puis exécute fmt, Clippy et tests. | Corrigé après erreur de parsing/filtre ; résultat de la nouvelle exécution à confirmer | Un test, une dépendance native ou une règle d'exclusion change. |
+| `.github/workflows/ci.yml` | Vérifie le patch, bloque les ROM suivies, installe les bibliothèques Linux puis exécute fmt, Clippy et tests. | Workflow parsé ; filtre ROM et fmt passent au run 39745465091 ; Clippy a révélé le lockfile à corriger. | Un test, une dépendance native ou une règle d'exclusion change. |
 | `.github/workflows/build.yml` | Build Linux après la CI réussie de `main`, fabrique distribution et entrée REA depuis une compilation. | À valider sur un vrai push `main` | Packaging, cible, profils Cargo ou format des artefacts changent. |
 | `.github/workflows/release.yml` | Publication manuelle d'un artefact existant après validation du tag/commit et checksum. | Manuel ; pas de compilation | Politique de tag, permissions ou contenu de release change. |
 | `.github/workflows/rea-analysis.yml` | Produit un bundle REA depuis l'artefact d'analyse, sans compilation. | Manuel ; pas une analyse d'agent automatique | Version Node/REA, contexte REA ou contrat du bundle change. |

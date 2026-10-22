@@ -50,6 +50,12 @@ La recompilation doit préserver les effets observables du CPU ARM7TDMI et des s
 
 L'inventaire fichier par fichier se trouve dans [docs/repository-audit.md](docs/repository-audit.md). À chaque groupe de travail significatif, revoir ce document, le présent audit et `README.md`, puis consigner dans `SESSION_HANDOFF.md` lesquels ont été relus et ce qui a changé. Une mise à jour est requise même si la conclusion est qu'aucun changement n'est nécessaire ; ne pas laisser ces fichiers dériver du dépôt ou de l'état réel de CI.
 
+### A-07 — Cargo.lock ne correspondait pas au manifeste actif
+
+**Sévérité : moyenne — corrigé dans la branche, validation en cours.**
+
+Le run CI `39745465091` a passé le garde-fou ROM et `cargo fmt --check`, puis Clippy a échoué avec le message indiquant que `Cargo.lock` devait être actualisé malgré `--locked`. Le lockfile initial avait été adapté depuis un projet Bevy plus large dont le graphe actif ne correspondait pas exactement à notre manifeste 2D minimal. Il est remplacé par un lockfile Cargo généré pour un profil Bevy `0.20.0` avec la feature `2d` seule, et le package racine est renommé pour ce projet. La nouvelle CI doit confirmer que Cargo accepte ce lockfile avec `--locked` ; ne pas lever le verrou pour faire passer la CI.
+
 ## Références de workflows
 
 - CI automatique sur PR et push Linux ; le workflow échoue si une ROM/BIOS/sauvegarde est suivie dans Git.
