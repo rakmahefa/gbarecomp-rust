@@ -41,7 +41,13 @@
 | `.github/workflows/build.yml` | Build release Linux après succès CI sur push `main` ; distribution + entrée REA d'une même compilation. | PRs ignorées intentionnellement ; le run Build du merge PR #4 était en cours lors de la dernière vérification, à revérifier dans Actions. | Packaging, cible, profil Cargo ou artefacts change. |
 | `.github/workflows/release.yml` | Publie manuellement un artefact existant après validation tag/commit/checksum. | Manuel ; pas de compilation. | Politique de tag, droits ou format de release change. |
 | `.github/workflows/rea-analysis.yml` | Prépare un bundle REA depuis l'artefact existant sans recompiler. | Manuel ; n'affirme pas effectuer une investigation agent automatique. | Node/REA ou format du bundle change. |
-| `rom/README.md` | Explique comment placer une ROM légalement obtenue uniquement en local. | Seul fichier suivi dans `rom/` ; rom binaire ignorée. | Chemin ou politique de ROM change. |
+| `.github/workflows/private-rom-audit.yml` | Accède au dépôt privé `rakmahefa/roms` via un secret d'environnement et effectue inspection/analyse bornée ; aucun artefact ROM-dérivé détaillé. | Ajouté sur `feature/private-rom-actions` ; deploy key/secret non configurés ni testés à la date de cette revue. | Clé, environnement, politique de résumé ou contrat du dépôt privé change. |
+| `docs/private-rom-workflow.md` | Explique l'architecture d'accès, la configuration manuelle read-only, le test et la rotation de clé. | Ajouté sur `feature/private-rom-actions` ; l'étape UI reste à exécuter par le propriétaire. | Secret, deploy key, permissions ou workflow changent. |
+| `rom/README.md` | Explique le mode local et renvoie vers le workflow d'analyse manuelle de la ROM privée. | ROM binaire toujours exclue de ce dépôt ; le clone privé temporaire réside sous `.private/roms` sur le runner. | Chemin ou politique de ROM change. |
+
+## État de la configuration privée (2026-10-22)
+
+Le workflow et les documents associés existent sur la branche `feature/private-rom-actions`, pas encore sur `main`. La deploy key publique et le secret d'environnement restent à ajouter manuellement ; aucune exécution réelle du workflow privé n'est revendiquée. Voir [docs/private-rom-workflow.md](private-rom-workflow.md).
 
 ## Règle de mise à jour obligatoire
 
