@@ -1,0 +1,95 @@
+name: REA analysis bundle (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: "ID of a successful Build (Linux) run that produced rea-analysis-input"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: rea-bundle-${{ inputs.build_run_id }}
+  cancel-in-progress: false
+
+jobs:
+  bundle:
+    name: Prepare a REA investigation bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate source build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_json="$(gh run view "$BUILD_RUN_ID" --json workflowName,headSha,headBranch,conclusion)"
+          if [[ "$(jq -r '.workflowName' <<< "$run_json")" != "Build (Linux)" || "$(jq -r '.conclusion' <<< "$run_json")" != "success" || "$(jq -r '.headBranch' <<< "$run_json")" != "main" ]]; then
+            echo "::error::Select a successful Build (Linux) run for main."
+            exit 1
+          fi
+          echo "$run_json" > build-run.json
+
+      - name: Download REA input artifact from that build
+        uses: actions/download-artifact@v4
+        with:
+          name: rea-analysis-input
+          path: downloaded
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.build_run_id }}
+
+      - name: Checksum and prepare REA bundle
+        env:
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd downloaded && sha256sum -c gbarecomp-rea-input-linux-x86_64.tar.gz.sha256)
+          mkdir -p dist/rea-investigation
+          cp downloaded/gbarecomp-rea-input-linux-x86_64.tar.gz dist/rea-investigation/
+          cp downloaded/gbarecomp-rea-input-linux-x86_64.tar.gz.sha256 dist/rea-investigation/
+
+          node_version="$(node --version)"
+          npm_version="$(npm --version)"
+          npx --yes --package=rea-agents@6.7.0 rea --help > dist/rea-investigation/rea-cli-help.txt
+          jq --arg run_id "$BUILD_RUN_ID" --arg node "$node_version" --arg npm "$npm_version" --arg rea_version "6.7.0" '. + {build_run_id:$run_id,node_version:$node,npm_version:$npm,rea_package:"rea-agents",rea_version:$rea_version,binary_execution_performed:false,automated_agent_analysis_performed:false}' build-run.json > dist/rea-investigation/manifest.json
+
+          cat > dist/rea-investigation/REA_TASK.md <<'EOF'
+          # REA investigation bundle
+
+          This bundle contains the unstripped native Linux x86_64 executable produced by the selected build, compiler/build metadata and ELF/symbol reports. It does not contain a GBA ROM, BIOS, save file or ROM-derived generated code.
+
+          REA CLI help was checked during packaging. This workflow does not run an agent investigation: use the bundle in an environment where REA is connected to an agent and the required native analysis engine is configured.
+
+          Suggested order:
+          1. Verify the manifest and checksums.
+          2. Inspect reports/readelf.txt, reports/symbols.txt and reports/file.txt.
+          3. Map native entry points and Bevy/runtime initialization paths.
+          4. Report claims with symbol/address evidence and distinguish observation from hypothesis.
+          5. Do not execute the analyzed binary unless its origin and behavior are trusted.
+          EOF
+
+          {
+            echo "## REA bundle prepared"
+            echo "- Build run ID: $BUILD_RUN_ID"
+            echo "- REA package: rea-agents@6.7.0"
+            echo "- No compilation or binary execution was performed."
+            echo "- The resulting artifact is named rea-investigation-bundle."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload REA investigation bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: rea-investigation-bundle
+          path: dist/rea-investigation/*
+          if-no-files-found: error
+          retention-days: 14
