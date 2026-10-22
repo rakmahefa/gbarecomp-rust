@@ -1,44 +1,54 @@
 # Session handoff
 
 Dernière mise à jour : 2026-10-22
-Groupe de travail : Phase 1 — audit de référence et première tranche de recompilation statique AOT
-Branche de livraison : `reference-audit-static-port`
-Branche de base : `phase-1/rust-bevy-static-only`
-PR : [#4 — audit de référence et portage Rust statique](https://github.com/rakmahefa/gbarecomp-rust/pull/4)
+État : PR #4 fusionnée, PR #5 fermée sans fusion
+Branche de reprise : `main`
+Merge commit de PR #4 : `fe9e1df5b74ccb686723adeea495419249e08d2f`
+Dernier SHA de documentation observé avant cette mise à jour : `73d66371f1aba688c486bedfa94bf04c0425067c`
+
+## Consignes immédiates pour la prochaine session
+
+1. **Commencer sur `main`** et lire ce fichier avant toute modification. Ne pas reprendre directement `phase-1/rust-bevy-static-only` ni la branche de livraison `reference-audit-static-port` comme base de travail; elles ont servi aux PR précédentes et sont désormais historiques.
+2. La PR [#4](https://github.com/rakmahefa/gbarecomp-rust/pull/4) est fusionnée. Elle a intégré `reference-audit.md`, l'audit et la première tranche de recompilation statique ARM/Thumb décrite ci-dessous.
+3. La PR [#5](https://github.com/rakmahefa/gbarecomp-rust/pull/5) a été fermée **sans fusion**. Ses changements ne doivent pas être supposés présents. Si l'on reprend son correctif, créer une nouvelle branche depuis le `main` courant et ouvrir une nouvelle PR plutôt que rouvrir/recycler PR #5.
+4. Priorité technique : corriger le décodeur ARM au sujet de la condition `0xF` et ajouter les tests de non-régression décrits dans « Prochaine action ».
 
 ## Invariant non négociable
 
-Le code invité GBA ARM7TDMI est analysé à l'avance et les blocs pris en charge sont émis sous forme de code source Rust natif, compilé avant exécution avec Cargo/rustc. Bevy reste la couche hôte/rendu. Aucun interpréteur d'instructions invité, aucun JIT et aucune traduction du code invité à l'exécution. Instruction inconnue, destination indirecte non résolue, code dynamique ou ambiguïté code/données doivent bloquer la sortie générée plutôt que devenir un NOP ou un chemin de secours silencieux.
+Le code invité GBA ARM7TDMI est analysé à l'avance et les blocs pris en charge sont émis sous forme de source Rust natif, compilé avant exécution avec Cargo/rustc. Bevy reste la couche hôte/rendu. Aucun interpréteur d'instructions invité, aucun JIT et aucune traduction de code invité à l'exécution. Instruction inconnue, cible indirecte non résolue, code dynamique ou ambiguïté code/données doivent bloquer la génération plutôt que devenir un NOP ou un chemin de secours silencieux.
 
-## Audit de référence
+## État livré par PR #4
 
-- Référence étudiée : [mstan/gbarecomp](https://github.com/mstan/gbarecomp), commit observé `9266573123fb950dfdee2d19040a2daf5e63e39d`, 491 fichiers suivis dans l'arbre inspecté.
-- `reference-audit.md` documente les familles de modules, la stratégie de portage, les exclusions de provenance et l'ordre d'implémentation.
-- Le dépôt de référence utilise PolyForm Noncommercial 1.0.0. Le bootstrap Rust courant est écrit indépendamment et ne copie ni extraits C++, ni ROM, ni BIOS, ni tables/données générées depuis ceux-ci. Tout futur port dérivé direct exige une vérification de licence et potentiellement une autorisation distincte.
-- La licence du dépôt Rust doit encore être choisie avant une distribution publique. Le blob ROM antérieurement suivi peut subsister dans l'historique Git : ce groupe n'a pas réécrit l'historique.
+- Audit complet des principales zones de la référence `mstan/gbarecomp` et contrainte de licence PolyForm Noncommercial 1.0.0 dans `reference-audit.md`.
+- Parsing de l'en-tête GBA et abstraction `GbaRom` avec mapping borné des fenêtres ROM Game Pak.
+- Décodeur ARM conservateur : B/BL, NOP exact, sous-ensemble des opérations data-processing immédiates, dont RSB/CMN. BX/SWI sont repérés mais pas gérés par le codegen actuel.
+- Décodeur Thumb conservateur : B, branche conditionnelle, MOVS/CMP/ADDS/SUBS immédiats, BX/SWI et marqueurs de préfixe/suffixe BL; les chemins non pris en charge restent en diagnostic.
+- IR typée et découverte de blocs depuis le branchement d'entrée, avec budget et diagnostics pour instruction non supportée, cible statique non résolue, flux indirect et chevauchement de blocs.
+- Émetteur AOT de source Rust pour le sous-ensemble validé; le codegen utilise `instruction_address + 8` pour le PC visible ARM lorsqu'une opération immédiate lit R15.
+- CLI hors ligne distincte de Bevy : `gbarecomp-recomp inspect`, `analyze` et `recompile --emit`.
+- Pas de bus/MMIO avec effets, pas de load/store dans l'IR/codegen, pas d'IRQ/DMA, de PPU/audio, de résolution générale des pointeurs indirects, ni d'intégration de l'exécutable généré à un jeu Bevy.
 
-## Implémentation présente dans la PR
+## État des PR et de la CI
 
-- Parsing de l'en-tête ROM et abstraction `GbaRom` avec mapping borné des fenêtres Game Pak.
-- Décodeur ARM conservateur : B/BL, NOP exact, opérations data-processing immédiates prises en charge (AND, EOR, SUB, RSB, ADD, TST, TEQ, CMP, CMN, ORR, MOV, BIC, MVN); BX/SWI détectés mais les chemins non gérés sont rejetés.
-- Décodeur Thumb conservateur : B, branches conditionnelles, MOVS/CMP/ADDS/SUBS immédiats, BX/SWI et préfixe/suffixe BL détectés; les chemins non pris en charge restent en diagnostic.
-- IR typée et découverte depuis le branchement d'entrée; branches directes/conditionnelles, budget de découverte, et diagnostics pour cible inconnue, branchement indirect, instruction inconnue et chevauchement de blocs.
-- Émetteur AOT de fonctions Rust et dispatch statique. Le code généré respecte le PC ARM visible (+8) pour les opérations immédiates qui lisent R15; les tests compilent et exécutent le source généré.
-- CLI offline distincte du host Bevy : `gbarecomp-recomp inspect`, `analyze`, `recompile --emit`.
-- Documentation de référence, d'architecture, de développement, de risques et d'inventaire mise à jour.
+- PR #4 : [fusionnée](https://github.com/rakmahefa/gbarecomp-rust/pull/4) dans `main` au merge commit `fe9e1df5b74ccb686723adeea495419249e08d2f`.
+- CI du code post-fusion : run [39756038257](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39756038257) réussi pour le merge commit : hygiène du dépôt, filtre ROM/BIOS/save, `cargo fmt`, Clippy strict et tests.
+- Le Build Linux post-fusion était encore en cours lors de la dernière vérification; vérifier sa conclusion dans [Actions](https://github.com/rakmahefa/gbarecomp-rust/actions).
+- Les mises à jour documentaires sur `main` ont déclenché une nouvelle CI sur le HEAD courant; vérifier le run le plus récent après cette modification.
+- La validation du code est faite par GitHub Actions. L'environnement de préparation précédent n'avait pas de toolchain Rust locale, donc aucun succès de compilation local n'est revendiqué.
+- Aucun test différentiel mGBA/oracle, démarrage de jeu complet ou test matériel de compatibilité n'a été exécuté.
 
-## Validation CI connue
+## Défaut connu et prochaine action
 
-- Le run [39753518405](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39753518405) au commit `7505b138a8500fac9c0289376e5887ba5f396881` a passé hygiène/filtre ROM, `cargo fmt --all -- --check`, Clippy strict et `cargo test --workspace --all-features --locked`, y compris le test qui compile et exécute le Rust généré.
-- Le run [39754684102](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39754684102) au commit `77e58405c09560a4e40a41cfc697797adb03e187` a passé le contrôle ROM, `cargo fmt --all -- --check`, Clippy strict et `cargo test --workspace --all-features --locked`, incluant le test d'exécution du source généré avec les opérations Thumb immédiates et le PC ARM (+8). Le commit documentaire suivant n'a pas changé le code Rust.
-- Aucun test différentiel mGBA/oracle n'a été exécuté. Aucun démarrage de jeu complet ni intégration du code émis à un runtime de jeu Bevy n'est démontré.
-- L'environnement local de préparation n'a pas de toolchain Rust; la compilation est vérifiée par GitHub Actions, pas annoncée comme exécutée localement.
+Dans `src/recompiler/arm.rs`, `decode` teste actuellement les motifs BX puis SWI **avant** de vérifier `condition == 0x0F`. Des encodages de l'espace inconditionnel peuvent donc être interprétés selon ces masques avant d'être rejetés. Le correctif proposé dans PR #5 déplaçait le rejet plus tôt, mais la PR est fermée et ce changement n'est pas dans `main`.
 
-## Limites ouvertes / prochaine tranche
+Dans une nouvelle branche issue de `main` :
+1. déplacer le rejet de `condition == 0x0F` avant les masques conditionnels BX/SWI (tout en gardant l'encodage exact NOP géré);
+2. tester qu'un BX conditionnel valide est décodé, qu'un SWI valide ARM7TDMI est reconnu, et que les encodages condition `0xF` concernés retournent `Unsupported` plutôt que BX/SWI;
+3. porter le test généré additionnel `SUB r0, pc, #8` pour vérifier le PC ARM visible +8, déjà implémenté mais pas couvert par ce cas;
+4. lancer `cargo fmt --all -- --check`, `cargo clippy --workspace --all-targets --all-features --locked -- -D warnings` et `cargo test --workspace --all-features --locked` dans CI, puis actualiser les audits.
 
-1. Ajouter opérations registre/décalages, ADC/SBC/RSC, BL Thumb, BX/BLX/interworking et résolution des cibles indirectes.
-2. Implémenter splitting de blocs et classification code/données; résoudre les tables de saut de manière statique.
-3. Ajouter mémoire RAM et sémantique load/store à l'IR/codegen.
-4. Définir les effets MMIO, puis IRQ/DMA/timers/ordonnanceur, PPU, audio, sauvegardes, RTC et périphériques.
-5. Lier la sortie compilée à un runtime natif/hôte, ajouter validation différentielle déterministe et rapports de couverture.
-6. Faire une revue finale des licences des sous-modules et choisir une licence explicite pour le dépôt cible.
+Après ce correctif, aborder la scission de blocs/classification code-données, puis load/store avec une interface mémoire explicite. Ne pas inventer un comportement pour une instruction non prise en charge.
+
+## Licence et provenance
+
+La référence C++ utilise PolyForm Noncommercial 1.0.0. Le code livré par PR #4 a été écrit indépendamment et ne copie ni extraits C++, ni ROM, ni BIOS, ni données générées depuis ceux-ci. Tout port source direct/dérivé futur exige une vérification de licence et éventuellement une autorisation distincte. Le dépôt cible doit toujours choisir une licence explicite avant une distribution publique étendue. Le blob ROM suivi historiquement peut demeurer dans l'historique Git antérieur.

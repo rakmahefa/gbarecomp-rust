@@ -103,14 +103,12 @@ Une tranche est intégrée seulement si :
 - `README.md`, `audit.md`, `docs/repository-audit.md` et `SESSION_HANDOFF.md` reflètent l’état réel et les résultats CI ;
 - la validation différentielle est marquée « non exécutée » tant qu’elle n’a pas réellement été lancée.
 
-## 6. Prochaine tranche de travail concrète
+## 6. État après fusion de PR #4 et reprise conseillée
 
-Sur la branche `phase-1/rust-bevy-static-only`, le parseur d’en-tête et le scaffold Bevy existent déjà. Les prochaines modifications devraient donc **étendre ces modules**, non les dupliquer :
+PR #4 a fusionné l’audit et la première tranche ARM/Thumb + CFG/IR/codegen dans `main` (merge commit `fe9e1df5b74ccb686723adeea495419249e08d2f`). La CI de code post-fusion a passé au run `39756038257`. PR #5 a été **fermée sans fusion** ; ses changements ne sont pas automatiquement présents dans `main`.
 
-1. ajouter le chargement ROM complet dans `src/rom/` ;
-2. ajouter des décodeurs ARM/Thumb et une IR sous `src/recompiler/`, en réutilisant le type `InstructionSet` et les erreurs `RecompileError` existants ;
-3. calculer et traverser le branchement d’entrée et les cibles de branche directes ;
-4. ajouter un générateur de code source Rust borné qui ne peut émettre que des instructions dont la sémantique est implémentée ;
-5. refuser explicitement le codegen en cas de diagnostic non résolu ; aucune exécution interprétée/JIT de secours.
+Première action de la prochaine session : repartir de `main`, inspecter les fichiers actuels, puis corriger le défaut de priorité du décodeur ARM : dans `src/recompiler/arm.rs`, le rejet de condition `0xF` se situe après les masques BX/SWI. Déplacer le garde avant ces masques et ajouter des tests de non-régression pour condition `0xF` et SWI valide. Le cas généré `SUB r0, pc, #8`, présent dans les propositions de PR #5, est également un bon test à porter car le codegen ARM +8 est déjà implémenté mais ce cas précis n’est pas couvert.
 
-L’état courant est un scaffold avec parseur d’en-tête, pas encore un recompilateur de jeux GBA complet.
+Ensuite seulement, aborder le splitting des blocs/classification code-données, puis une tranche mémoire/load-store avec interface explicite et tests générés. Les accès mémoire/MMIO à effets, IRQ/DMA, PPU/audio, résolution complète des cibles indirectes et intégration au jeu Bevy restent absents. Ne pas annoncer un recompilateur de jeu complet.
+
+Pour tout portage direct du code C++ de référence, vérifier à nouveau les contraintes PolyForm Noncommercial ou obtenir une autorisation distincte. La tranche fusionnée a été écrite indépendamment ; aucune ROM/BIOS/structure de données dérivée n’a été ajoutée.

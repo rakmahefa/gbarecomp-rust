@@ -2,7 +2,7 @@
 
 ## Résumé
 
-La CI antérieure a validé le scaffold Bevy et le parseur d'en-tête. Le groupe courant ajoute maintenant des décodeurs ARM/Thumb limités, une IR typée, une découverte conservatrice de branches statiques et un émetteur source Rust qui compile/exécute une fixture synthétique par rustc. Cette tranche doit encore passer fmt/Clippy/tests sur la CI du commit final. Elle n'est pas un recompilateur de jeu complet : le bus matériel, les instructions restantes, la découverte exhaustive des fonctions, les exceptions et le runtime d'un jeu recompilé restent à construire.
+La PR #4 a été fusionnée dans `main` au merge commit `fe9e1df5b74ccb686723adeea495419249e08d2f`. Elle apporte des décodeurs ARM/Thumb limités, une IR typée, une découverte conservatrice de branches statiques et un émetteur Rust AOT dont la fixture synthétique est compilée puis exécutée par rustc. Le run post-fusion [39756038257](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39756038257) est vert pour le code fusionné. Cela reste une tranche limitée, pas un recompilateur de jeu complet. Elle n'est pas un recompilateur de jeu complet : le bus matériel, les instructions restantes, la découverte exhaustive des fonctions, les exceptions et le runtime d'un jeu recompilé restent à construire.
 
 ## Constatations et actions
 
@@ -96,7 +96,7 @@ Limites à surveiller avant extension :
 
 ### A-10 — Mapping statique des fenêtres Game Pak : policy explicite
 
-**État : code et tests ajoutés, CI de cette tranche en attente.**
+**État : code et tests fusionnés dans PR #4 ; le run post-fusion 39756038257 a passé la CI.**
 
 L'abstraction `GbaRom` associe les plages CPU documentées 0x08000000-0x09FFFFFF, 0x0A000000-0x0BFFFFFF et 0x0C000000-0x0DFFFFFF aux fenêtres wait-state 0, 1 et 2. Les fenêtres exposent le même contenu ROM ; le résultat conserve l'identité de la fenêtre pour ne pas perdre l'information de wait-state. La taille maximale acceptée ici est de 32 MiB.
 
@@ -107,8 +107,19 @@ Référence de la carte mémoire : [gbadev — GBA memory map](https://gbadev.ne
 
 ### A-12 — Extension des opérations arithmétiques immédiates ARM/Thumb
 
-**État : CI réussie — run [39754684102](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39754684102), commit `77e58405c09560a4e40a41cfc697797adb03e187`.**
+**État : inclus dans PR #4 et dans `main`; la CI de code a passé au run [39754684102](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39754684102), puis au run post-fusion [39756038257](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39756038257).**
 
 La tranche codegen ajoute RSB et CMN au sous-ensemble ARM data-processing immédiat, et étend Thumb du seul MOVS immédiat à MOVS/CMP/ADDS/SUBS. Le source généré calcule les flags propres à chaque opération : RSB calcule Operand2 - Rn et les flags dans cet ordre; CMN actualise les flags comme une addition sans écrire le registre destination; CMP Thumb ne modifie pas le registre comparé; ADDS/SUBS écrivent le registre et actualisent N/Z/C/V.
 
 Un test du code généré compile puis exécute maintenant le source sur des données synthétiques, y compris un accès au PC ARM visible (+8) et des opérations immédiates Thumb. Ce ne sont pas des tests différentiels GBA. Les décalages registre, ADC/SBC/RSC, chargements/stockages, BL Thumb, BX/interworking et le bus matériel restent exclus; l'inconnu bloque toujours la génération.
+
+
+### A-13 — Décoder la condition ARM `0xF` avant les masques BX/SWI
+
+**Sévérité : élevée pour la validité du décodeur. État : défaut confirmé dans `main`; correctif de PR #5 fermé sans fusion.**
+
+Dans `src/recompiler/arm.rs`, `decode` vérifie actuellement les motifs BX et SWI avant le garde `condition == 0x0F`. Des encodages de l'espace ARM inconditionnel peuvent ainsi correspondre à un masque BX/SWI avant le rejet de la condition `0xF`. Le code GBA ARM7TDMI ne doit pas reconnaître par accident cet espace comme les instructions conditionnelles ordinaires.
+
+**Action de reprise :** dans une nouvelle branche créée depuis `main`, déplacer le rejet de `condition == 0x0F` immédiatement après l'identification exacte du NOP (ou avant tous les masques conditionnels concernés), puis ajouter des tests qui prouvent que les encodages avec condition `0xF` ne sont pas décodés comme BX/SWI, tout en gardant un SWI conditionnel valide reconnu. L'ancien correctif est visible dans la branche de PR #5, mais PR #5 est fermée sans fusion : vérifier chaque changement contre `main` et ne pas supposer qu'il a été intégré.
+
+Le calcul du PC ARM visible (`adresse instruction + 8`) est déjà présent dans le codegen fusionné. Le cas additionnel `SUB r0, pc, #8` proposé dans PR #5 n'est pas dans le test du codegen fusionné et devrait servir de test de non-régression.
