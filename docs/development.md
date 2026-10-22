@@ -34,9 +34,21 @@ cargo build --release --locked --workspace --bins
 cargo run --release --locked
 ```
 
-La CI Linux précédente a validé formatage, Clippy et tests du scaffold. La nouvelle tranche du parseur d'en-tête utilise uniquement un en-tête GBA synthétique dans les tests ; les tests ne dépendent pas de la ROM de développement locale. La fenêtre Bevy est compilée, mais son lancement interactif n'a pas encore été vérifié localement.
+La CI précédente a validé les scaffolds et parseur, mais le groupe courant — décodeurs, découverte, IR et émetteur — reste en attente de validation CI. Aucun build Cargo n'est disponible dans l'environnement de préparation local ; les résultats ci-dessous doivent être lus avec les runs GitHub Actions du commit concerné. Le test du générateur compile puis exécute le Rust émis avec rustc.
 
 La première compilation Bevy est lourde ; le workflow CI met en cache le registre et les artefacts Cargo pour réutiliser le travail entre exécutions compatibles.
+
+## Commandes de recompilation statique
+
+Le binaire de développement `gbarecomp-recomp` est distinct du runtime Bevy `gbarecomp-rust`. Il charge une ROM locale fournie par l'utilisateur ; il n'inclut aucune image dans Git ou dans les artefacts.
+
+```bash
+cargo run --locked --bin gbarecomp-recomp -- inspect rom/testrom.gba
+cargo run --locked --bin gbarecomp-recomp -- analyze rom/testrom.gba --max-instructions 250000
+cargo run --locked --bin gbarecomp-recomp -- recompile rom/testrom.gba --emit target/generated/game.rs
+```
+
+`analyze` affiche les blocs détectés et les diagnostics. `recompile` ne produit le fichier qu'en absence de diagnostic et refuse d'écraser un fichier existant. La tranche actuelle émet un subset ARM/Thumb limité ; elle ne prétend pas supporter un jeu complet. Les erreurs pour instruction inconnue, branche indirecte, cible non résolue ou chevauchement code/données sont intentionnelles : il n'y a aucun interpréteur ou JIT de secours.
 
 ## Parseur d'en-tête et ROM locale
 
