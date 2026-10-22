@@ -1,6 +1,6 @@
 # Audit d'inventaire des fichiers du dépôt
 
-- **Dernière revue :** 2026-10-22
+- **Dernière revue :** 2026-10-22 (correctifs ARM/codegen après fusion)
 - **Portée :** inventaire des fichiers suivis sur `phase-1/rust-bevy-static-only` pour la tranche CFG/IR/émission Rust statique.
 - **Cadence :** actualiser l'inventaire à chaque groupe de travail qui ajoute, supprime, renomme ou change le rôle d'un fichier ; faire une revue complète au minimum avant chaque release.
 - **Complément :** [`audit.md`](../audit.md) suit les risques techniques, licences et distribution ; le présent document suit les fichiers eux-mêmes.
@@ -53,3 +53,11 @@
 4. Mettre à jour `SESSION_HANDOFF.md` avec groupe/date, fichiers revus, changements, résultats et échecs réels, SHA du commit et prochaine étape.
 
 Une vérification non exécutée doit être marquée **non vérifiée**, pas comme un succès. Avant une release, examiner la liste exacte de fichiers empaquetés et vérifier qu'aucune ROM/BIOS/sauvegarde/code ROM dérivé n'est présent.
+
+
+## Note de validation courante — 2026-10-22
+
+La PR #2 est fusionnée, mais le run CI push 39751582883 sur main a échoué au formatage de src/recompiler/codegen.rs, et le build (Linux) a été ignoré après cet échec. La branche phase-1/rust-bevy-static-only comporte le correctif rustfmt. Le groupe actuel corrige également deux points de sémantique avant la PR de suivi :
+- le décodeur refuse le champ condition ARM 0xF avant les masques BX/SWI, avec des tests dédiés ;
+- le codegen matérialise R15 ARM lu comme opérande via adresse d'instruction + 8, avec un test qui compile et exécute le Rust émis.
+La CI du HEAD après ces changements reste à exécuter ; ne pas considérer la tranche CFG/IR/codegen comme verte avant le résultat du nouveau run.

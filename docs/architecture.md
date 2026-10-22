@@ -12,6 +12,8 @@ La référence [mstan/gbarecomp](https://github.com/mstan/gbarecomp) sert à ét
 
 Le code contient désormais une première tranche pour le chargement d'une image fournie en mémoire, le mapping des trois fenêtres Game Pak, le décodage conservateur de familles ARM/Thumb, une IR typée, le parcours depuis l'instruction de branchement du header et un émetteur de source Rust. Le CLI correspondant est `gbarecomp-recomp`.
 
+Pour les opérations ARM data-processing qui lisent R15, le PC visible est l'adresse de l'instruction + 8, pas la valeur persistée dans le registre hôte ; le générateur émet cette valeur explicitement. Les encodages ARM avec champ condition 0xF sont rejetés avant les masques d'instructions conditionnelles. La CI de ces correctifs reste à confirmer.
+
 L'émetteur est volontairement limité : NOP ARM exact, certaines opérations ARM data-processing à immédiat, MOVS immédiat Thumb, branchements directs et conditionnels. Il bloque la sortie dès qu'une cible ou une instruction ne peut pas être résolue par cette tranche. Il ne modélise pas encore les effets mémoire ni les périphériques GBA, et la sortie émise n'est pas intégrée à un exécutable de jeu/Bevy. Les tests du générateur compilent et exécutent une fixture synthétique.
 
 ## Couches proposées

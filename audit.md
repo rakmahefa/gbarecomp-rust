@@ -103,3 +103,22 @@ L'abstraction `GbaRom` associe les plages CPU documentées 0x08000000-0x09FFFFFF
 Pour une image dont la taille est une puissance de deux, le mapping utilise un masque de taille pour représenter l'alias des bits d'adresse hauts. Pour les images de taille non puissance de deux, les offsets au-delà des octets fournis deviennent une erreur explicite plutôt qu'un miroir deviné. Cette règle conservatrice devra être comparée à une ROM commerciale autorisée et à un oracle matériel avant toute affirmation de compatibilité.
 
 Référence de la carte mémoire : [gbadev — GBA memory map](https://gbadev.net/gbadoc/memory.html). Aucun code de cette référence n'est copié.
+
+
+### A-11 — CI rouge après fusion de la première tranche de recompilation
+
+**État au 2026-10-22 : correctifs sur la branche de suivi, CI finale en attente.**
+
+La PR #2 a été fusionnée, mais le run CI push [39751582883](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39751582883) sur le commit 5fa506d398c963f608cba08d6bb6f7ef964d8c57 a échoué à cargo fmt --check. Les logs identifient deux différences de formatage dans src/recompiler/codegen.rs. La branche de suivi comprend le réordonnancement rustfmt dans le commit f6192eb73c2ff1dce3e01dc93555cdd09fd6c69c, plus des correctifs et tests associés. Ce n'est pas encore une preuve de CI verte sur le HEAD actuel ; la CI de la PR de suivi doit confirmer fmt, Clippy et tous les tests.
+
+### A-12 — Lecture de R15 dans le code ARM généré
+
+**État : correctif et test de régression ajoutés, CI en attente.**
+
+Pour une instruction ARM data-processing qui lit R15 comme opérande, la valeur visible est l'adresse de l'instruction plus 8, pas le registre R15 persistant du runtime. Le générateur émettait précédemment state.regs[15] comme opérande gauche, ce qui pouvait produire un résultat erroné si l'état n'avait pas été amorcé par l'appelant. Le générateur émet désormais le littéral correspondant à instruction.address + 8 ; le test compile et exécute du Rust généré depuis une fixture synthétique contenant SUB r0, pc, #8.
+
+### A-13 — Encodages ARM avec champ condition 0xF
+
+**État : correctif et tests ajoutés, CI en attente.**
+
+Le décodeur appliquait les masques BX et SWI avant de refuser le champ condition 0xF, si bien que des encodages de l'espace inconditionnel pouvaient être classés comme instructions ordinaires. Le rejet de la condition 0xF est déplacé avant ces masques, avec des tests séparant SWI valide et BX/SWI à condition 0xF. Toute nouvelle famille doit rester bornée à l'ARM7TDMI et être couverte par tests.

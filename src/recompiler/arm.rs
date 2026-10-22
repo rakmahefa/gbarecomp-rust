@@ -38,6 +38,12 @@ pub fn decode(word: u32) -> ArmInstruction {
         return ArmInstruction::Nop;
     }
 
+    if condition == 0x0F {
+        // ARM7TDMI does not define the later unconditional instruction space.
+        // Reject it before masks for ordinary BX/SWI encodings can match.
+        return ArmInstruction::Unsupported;
+    }
+
     if word & 0x0FFF_FFF0 == 0x012F_FF10 {
         return ArmInstruction::BranchExchange {
             condition,
@@ -50,12 +56,6 @@ pub fn decode(word: u32) -> ArmInstruction {
             condition,
             comment: word & 0x00FF_FFFF,
         };
-    }
-
-    if condition == 0x0F {
-        // ARMv5+ unconditional extensions (including BLX immediate) are not
-        // part of the GBA's ARM7TDMI instruction set implemented here.
-        return ArmInstruction::Unsupported;
     }
 
     if word & 0x0E00_0000 == 0x0A00_0000 {
@@ -121,6 +121,23 @@ mod tests {
                 shifter_carry: Some(false),
             }
         );
+    }
+
+    #[test]
+    fn decodes_software_interrupt_with_a_valid_condition() {
+        assert_eq!(
+            decode(0xEF12_3456),
+            ArmInstruction::SoftwareInterrupt {
+                condition: 0xE,
+                comment: 0x0012_3456,
+            }
+        );
+    }
+
+    #[test]
+    fn rejects_condition_f_encodings_before_bx_or_swi_masks() {
+        assert_eq!(decode(0xFF00_0001), ArmInstruction::Unsupported);
+        assert_eq!(decode(0xF12F_FF10), ArmInstruction::Unsupported);
     }
 
     #[test]

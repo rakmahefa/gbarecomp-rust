@@ -208,7 +208,12 @@ fn emit_instruction(
                 output,
                 "    if condition_passed(state.cpsr, {condition}) {{"
             );
-            let _ = writeln!(output, "        let lhs = state.regs[{rn}];");
+            if *rn == 15 {
+                let visible_pc = instruction.address.wrapping_add(8);
+                let _ = writeln!(output, "        let lhs = 0x{visible_pc:08X}_u32;");
+            } else {
+                let _ = writeln!(output, "        let lhs = state.regs[{rn}];");
+            }
             let _ = writeln!(output, "        let rhs = 0x{value:08X}_u32;");
             let expression = match opcode {
                 DataProcessingOpcode::And | DataProcessingOpcode::Test => "lhs & rhs",
@@ -426,9 +431,28 @@ mod tests {
                     }],
                     terminator: BlockTerminator::Exit,
                 },
+                BasicBlock {
+                    start: 0x0800_0010,
+                    instruction_set: InstructionSet::Arm,
+                    instructions: vec![IrInstruction {
+                        address: 0x0800_0010,
+                        raw: 0xE24F_0008,
+                        instruction_set: InstructionSet::Arm,
+                        operation: IrOperation::ArmDataProcessingImmediate {
+                            condition: 0xE,
+                            opcode: DataProcessingOpcode::Subtract,
+                            set_flags: false,
+                            rn: 15,
+                            rd: 0,
+                            value: 8,
+                            shifter_carry: None,
+                        },
+                    }],
+                    terminator: BlockTerminator::Exit,
+                },
             ],
             diagnostics: vec![],
-            instruction_count: 3,
+            instruction_count: 4,
             instruction_limit: 100,
             reached_instruction_limit: false,
         };
@@ -436,7 +460,7 @@ mod tests {
         source.push_str(
             r#"
 #[test]
-fn generated_mov_and_branch_execute_natively() {
+fn generated_mov_branch_and_pc_operand_execute_natively() {
     let mut state = RecompiledState::default();
     assert_eq!(
         execute_block(0x0800_0000, false, &mut state),
@@ -449,6 +473,14 @@ fn generated_mov_and_branch_execute_natively() {
         execute_block(0x0800_0008, false, &mut state),
         Ok(Flow::Exit)
     );
+
+    let mut pc_state = RecompiledState::default();
+    assert_eq!(
+        execute_block(0x0800_0010, false, &mut pc_state),
+        Ok(Flow::Exit)
+    );
+    // SUB r0, pc, #8 reads PC as instruction address + 8 on ARM.
+    assert_eq!(pc_state.regs[0], 0x0800_0010);
 }
 "#,
         );

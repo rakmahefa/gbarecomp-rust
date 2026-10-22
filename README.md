@@ -8,7 +8,7 @@ L'objectif est d'analyser le code machine ARM7TDMI (ARM et Thumb) d'une ROM GBA,
 
 ## État du projet
 
-Le dépôt ajoute maintenant une première tranche verticale de recompilation **statique** : image ROM et mapping Game Pak, décodeurs ARM/Thumb conservateurs, IR typée, découverte CFG des branches directes et émission de fonctions Rust pour un sous-ensemble étroit. La CLI hors ligne `gbarecomp-recomp` propose `inspect`, `analyze` et `recompile --emit`. La CI du groupe de travail doit encore valider ce code.
+Le dépôt contient maintenant une première tranche verticale de recompilation **statique** : image ROM et mapping Game Pak, décodeurs ARM/Thumb conservateurs, IR typée, découverte CFG des branches directes et émission de fonctions Rust pour un sous-ensemble étroit. La CLI hors ligne gbarecomp-recomp propose inspect, analyze et recompile --emit. Le commit fusionné sur main (5fa506d) a échoué au contrôle rustfmt ; la branche de suivi corrige ce formatage et ajoute des tests sémantiques pour PC+8 ARM et le rejet des encodages ARM avec condition 0xF. Cette version de suivi attend encore la validation CI.
 
 Cette tranche sait abaisser les NOP exacts, quelques opérations ARM data-processing immédiates, MOVS immédiat Thumb et branches directes/conditionnelles. Toute autre instruction, cible indirecte, code/data overlap ou budget épuisé entraîne un diagnostic et bloque l'émission. Ce n'est **pas** encore un recompilateur complet ou un jeu exécutable : pas de bus/MMIO avec effets, IRQ/DMA, PPU/audio, fonctions de support complètes, résolution exhaustive code/données ou runtime généré relié à la scène Bevy. Les tests utilisent des ROM synthétiques ; aucune ROM réelle n'est requise.
 

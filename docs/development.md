@@ -34,7 +34,7 @@ cargo build --release --locked --workspace --bins
 cargo run --release --locked
 ```
 
-La CI précédente a validé les scaffolds et parseur, mais le groupe courant — décodeurs, découverte, IR et émetteur — reste en attente de validation CI. Aucun build Cargo n'est disponible dans l'environnement de préparation local ; les résultats ci-dessous doivent être lus avec les runs GitHub Actions du commit concerné. Le test du générateur compile puis exécute le Rust émis avec rustc.
+La dernière CI sur main, run 39751582883 au commit 5fa506d, a échoué au formatage de src/recompiler/codegen.rs. La branche de suivi contient le correctif rustfmt ainsi que des tests du générateur qui compilent et exécutent du Rust natif émis, mais la CI du HEAD actuel doit encore confirmer fmt, Clippy et tous les tests. Aucun build Cargo local n'a été exécuté dans l'environnement de préparation ; se fier aux runs GitHub Actions du SHA exact.
 
 La première compilation Bevy est lourde ; le workflow CI met en cache le registre et les artefacts Cargo pour réutiliser le travail entre exécutions compatibles.
 
