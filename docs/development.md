@@ -34,7 +34,7 @@ cargo build --release --locked --workspace --bins
 cargo run --release --locked
 ```
 
-La CI précédente a validé les scaffolds et parseur, mais le groupe courant — décodeurs, découverte, IR et émetteur — reste en attente de validation CI. Aucun build Cargo n'est disponible dans l'environnement de préparation local ; les résultats ci-dessous doivent être lus avec les runs GitHub Actions du commit concerné. Le test du générateur compile puis exécute le Rust émis avec rustc.
+La première tranche de décodeurs, découverte CFG, IR et émission est fusionnée par PR #4. Le run CI de fusion et les runs courants sont consultables dans [GitHub Actions](https://github.com/rakmahefa/gbarecomp-rust/actions). L'environnement de préparation de la session précédente ne disposait pas d'une toolchain Rust locale : ne pas présenter une compilation locale comme exécutée. Le test du générateur compile puis exécute le Rust émis avec rustc.
 
 La première compilation Bevy est lourde ; le workflow CI met en cache le registre et les artefacts Cargo pour réutiliser le travail entre exécutions compatibles.
 
@@ -48,7 +48,7 @@ cargo run --locked --bin gbarecomp-recomp -- analyze rom/testrom.gba --max-instr
 cargo run --locked --bin gbarecomp-recomp -- recompile rom/testrom.gba --emit target/generated/game.rs
 ```
 
-`analyze` affiche les blocs détectés et les diagnostics. `recompile` ne produit le fichier qu'en absence de diagnostic et refuse d'écraser un fichier existant. La tranche actuelle émet un subset ARM/Thumb limité ; elle ne prétend pas supporter un jeu complet. Les erreurs pour instruction inconnue, branche indirecte, cible non résolue ou chevauchement code/données sont intentionnelles : il n'y a aucun interpréteur ou JIT de secours.
+`analyze` affiche les blocs détectés et les diagnostics. `recompile` ne produit le fichier qu'en absence de diagnostic et refuse d'écraser un fichier existant. La tranche actuelle émet un sous-ensemble ARM/Thumb limité ; elle ne prétend pas supporter un jeu complet. Les erreurs pour instruction inconnue, branche indirecte, cible non résolue ou chevauchement code/données sont intentionnelles : il n'y a aucun interpréteur ou JIT de secours. Avant d'étendre le décodeur ARM, corriger et tester le rejet des encodages avec condition `0xF` avant les masques BX/SWI (PR #5 fermée non fusionnée).
 
 ## Parseur d'en-tête et ROM locale
 
