@@ -176,6 +176,50 @@ pub fn analyze(rom: &GbaRom, options: AnalysisOptions) -> AnalysisReport {
                             };
                             break;
                         }
+                        arm::ArmInstruction::SingleDataTransferImmediate {
+                            condition,
+                            load,
+                            byte,
+                            pre_index,
+                            add_offset,
+                            write_back,
+                            rn,
+                            rd,
+                            offset,
+                        } => {
+                            // This tranche does not implement the privileged/unprivileged
+                            // post-index variants, PC destinations, or ambiguous writeback.
+                            if (!pre_index && write_back)
+                                || (rn == 15 && write_back)
+                                || rd == 15
+                                || (load && write_back && rn == rd)
+                            {
+                                diagnostics.push(RecompileError::UnsupportedInstruction {
+                                    address: pc,
+                                    opcode: raw,
+                                    instruction_set,
+                                });
+                                terminator = BlockTerminator::Unsupported;
+                                break;
+                            }
+                            instructions.push(IrInstruction {
+                                address: pc,
+                                raw,
+                                instruction_set,
+                                operation: IrOperation::ArmSingleDataTransferImmediate {
+                                    condition,
+                                    load,
+                                    byte,
+                                    pre_index,
+                                    add_offset,
+                                    write_back,
+                                    rn,
+                                    rd,
+                                    offset,
+                                },
+                            });
+                            pc = pc.wrapping_add(4);
+                        }
                         arm::ArmInstruction::BranchExchange { .. } => {
                             diagnostics.push(RecompileError::UnresolvedIndirectControlFlow {
                                 instruction_address: pc,
@@ -427,6 +471,32 @@ mod tests {
                 instruction_address: 0x0800_00C0
             }
         )));
+    }
+
+    #[test]
+    fn discovers_basic_word_load_store_without_hidden_fallback() {
+        let rom = synthetic_rom(&[
+            (0, 0xEA00_002E),
+            (GBA_HEADER_LEN, 0xE3A0_0780), // MOV r0, #0x02000000
+            (GBA_HEADER_LEN + 4, 0xE3A0_1042), // MOV r1, #0x42
+            (GBA_HEADER_LEN + 8, 0xE580_1004), // STR r1, [r0, #4]
+            (GBA_HEADER_LEN + 12, 0xE590_2004), // LDR r2, [r0, #4]
+            (GBA_HEADER_LEN + 16, 0xEAFF_FFFE), // B .
+        ]);
+        let report = analyze(&rom, AnalysisOptions { max_instructions: 16 });
+        assert!(report.diagnostics.is_empty(), "{:?}", report.diagnostics);
+        assert!(report.blocks.iter().flat_map(|block| &block.instructions).any(|instruction| {
+            matches!(
+                &instruction.operation,
+                IrOperation::ArmSingleDataTransferImmediate { load: false, .. }
+            )
+        }));
+        assert!(report.blocks.iter().flat_map(|block| &block.instructions).any(|instruction| {
+            matches!(
+                &instruction.operation,
+                IrOperation::ArmSingleDataTransferImmediate { load: true, .. }
+            )
+        }));
     }
 
     #[test]
