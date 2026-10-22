@@ -10,7 +10,7 @@ Dernier SHA de documentation observé avant cette mise à jour : `73d66371f1aba6
 
 ## Mise à jour de session — accès à la ROM privée (2026-10-22)
 
-La PR [#6 — accès privé à la ROM](https://github.com/rakmahefa/gbarecomp-rust/pull/6) est ouverte depuis la branche `feature/private-rom-actions`, HEAD observé `905a0726495f7073a58ccb08c090e7af27d9d4c3`. Elle contient le nouveau workflow manuel et les mises à jour documentaires ; elle **n'est pas encore fusionnée dans main**.
+La PR [#6 — accès privé à la ROM](https://github.com/rakmahefa/gbarecomp-rust/pull/6) est ouverte depuis la branche `feature/private-rom-actions`. Le SHA `905a0726495f7073a58ccb08c090e7af27d9d4c3` était le HEAD au moment de la première vérification ; des mises à jour documentaires ont ensuite fait avancer la branche. Toujours lire le HEAD courant directement dans la PR avant de reprendre. Elle **n'est pas encore fusionnée dans main**.
 
 - `rakmahefa/gbarecomp-rust` est public ; la connexion a les droits admin sur ce dépôt.
 - `rakmahefa/roms` est privé et contient un fichier ROM Emerald de 16 MiB. La connexion peut lire le dépôt, mais cet accès ne se transmet pas automatiquement au `GITHUB_TOKEN` d'un workflow GitHub Actions.
