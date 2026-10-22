@@ -66,10 +66,11 @@ pub fn analyze(rom: &GbaRom, options: AnalysisOptions) -> AnalysisReport {
                 break;
             }
 
-            if let Some(previous_set) = decoded_addresses.get(&pc).copied() {
-                if previous_set != instruction_set || pc != start {
-                    diagnostics.push(RecompileError::CodeDataOverlap { address: pc });
-                }
+            if decoded_addresses.contains_key(&pc) {
+                // This is a new block entry into bytes already consumed by a prior
+                // block. Until block splitting is implemented, fail closed rather
+                // than emitting overlapping functions with ambiguous ownership.
+                diagnostics.push(RecompileError::CodeDataOverlap { address: pc });
                 terminator = BlockTerminator::Unsupported;
                 break;
             }
@@ -378,7 +379,7 @@ mod tests {
         let rom = synthetic_rom(&[
             (0, 0xEA00_002E), // 0x08000000 -> 0x080000C0
             (GBA_HEADER_LEN, 0xE3A0_0001), // MOV r0, #1
-            (GBA_HEADER_LEN + 4, 0xEAFF_FFFE), // B .
+            (GBA_HEADER_LEN + 4, 0xEAFF_FFFD), // B back to block start
         ]);
         let report = analyze(
             &rom,
