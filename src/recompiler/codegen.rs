@@ -208,7 +208,12 @@ fn emit_instruction(
                 output,
                 "    if condition_passed(state.cpsr, {condition}) {{"
             );
-            let _ = writeln!(output, "        let lhs = state.regs[{rn}];");
+            let lhs_expression = if *rn == 15 {
+                format!("0x{:08X}_u32", instruction.address.wrapping_add(8))
+            } else {
+                format!("state.regs[{rn}]")
+            };
+            let _ = writeln!(output, "        let lhs = {lhs_expression};");
             let _ = writeln!(output, "        let rhs = 0x{value:08X}_u32;");
             let expression = match opcode {
                 DataProcessingOpcode::And | DataProcessingOpcode::Test => "lhs & rhs",
@@ -398,20 +403,36 @@ mod tests {
                 BasicBlock {
                     start: 0x0800_0000,
                     instruction_set: InstructionSet::Arm,
-                    instructions: vec![IrInstruction {
-                        address: 0x0800_0000,
-                        raw: 0xE3A0_0001,
-                        instruction_set: InstructionSet::Arm,
-                        operation: IrOperation::ArmDataProcessingImmediate {
-                            condition: 0xE,
-                            opcode: DataProcessingOpcode::Move,
-                            set_flags: false,
-                            rn: 0,
-                            rd: 0,
-                            value: 1,
-                            shifter_carry: None,
+                    instructions: vec![
+                        IrInstruction {
+                            address: 0x0800_0000,
+                            raw: 0xE3A0_0001,
+                            instruction_set: InstructionSet::Arm,
+                            operation: IrOperation::ArmDataProcessingImmediate {
+                                condition: 0xE,
+                                opcode: DataProcessingOpcode::Move,
+                                set_flags: false,
+                                rn: 0,
+                                rd: 0,
+                                value: 1,
+                                shifter_carry: None,
+                            },
                         },
-                    }],
+                        IrInstruction {
+                            address: 0x0800_0004,
+                            raw: 0xE28F_1000,
+                            instruction_set: InstructionSet::Arm,
+                            operation: IrOperation::ArmDataProcessingImmediate {
+                                condition: 0xE,
+                                opcode: DataProcessingOpcode::Add,
+                                set_flags: false,
+                                rn: 15,
+                                rd: 1,
+                                value: 0,
+                                shifter_carry: None,
+                            },
+                        },
+                    ],
                     terminator: BlockTerminator::Branch {
                         condition: 0xE,
                         target: 0x0800_0008,
@@ -449,6 +470,8 @@ fn generated_mov_and_branch_execute_natively() {
         Ok(Flow::Branch { target: 0x0800_0008, thumb: false })
     );
     assert_eq!(state.regs[0], 1);
+    // ARM's visible PC operand is the address of the ADD instruction + 8.
+    assert_eq!(state.regs[1], 0x0800_000C);
     assert_eq!(state.regs[15], 0x0800_0008);
     assert_eq!(state.cpsr & T, 0);
     assert_eq!(
