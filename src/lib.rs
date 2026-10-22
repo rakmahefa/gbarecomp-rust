@@ -5,4 +5,5 @@
 //! instructions. There is intentionally no interpreter or JIT path.
 
 pub mod recompiler;
+pub mod rom;
 pub mod runtime;

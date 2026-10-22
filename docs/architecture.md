@@ -10,10 +10,10 @@ La référence [mstan/gbarecomp](https://github.com/mstan/gbarecomp) sert à ét
 
 ## Couches proposées
 
-1. **Identification de la cartouche** — chargement local, taille, hash, révision et cartographie des régions. La ROM et les données propriétaires restent hors de Git et des artefacts.
+1. **En-tête et identification de cartouche** — le premier composant lit l'en-tête fixe GBA de 0xC0 octets, expose le point d'entrée et les champs de titre/code/maker/version, puis calcule le complement checksum. Un checksum incohérent est actuellement signalé comme métadonnée diagnostique ; les politiques de rejet relèveront d'une étape de validation ultérieure. Le chargement de l'image complète, son hash et sa cartographie mémoire restent à implémenter.
 2. **Analyse statique ARM/Thumb** — découverte du code et des blocs, état ARM/Thumb, branches, appels, tables littérales, données vs code et cibles indirectes résolues. Les hypothèses doivent être traçables.
 3. **IR et validation sémantique** — représentation intermédiaire indépendante de Bevy ; sémantique des flags, conditions, shifter, effets mémoire et contrat d'appel. Tests sur cas isolés avant émission native.
-4. **Émission Rust** — génération lisible et reproductible des fonctions Rust, avec sources générées et manifestes ignorés ou conservés localement selon la politique de build. La sortie générée est compilée par Cargo/rustc pendant la construction.
+4. **Émission Rust** — génération lisible et reproductible des fonctions Rust. La sortie est compilée par Cargo/rustc pendant la construction, avant livraison ou lancement du jeu recompilé.
 5. **Bus et modèle matériel GBA** — carte mémoire, registres E/S, IRQ, DMA, timers, PPU, audio, entrée et sauvegardes. Les effets suivent les contrats matériels documentés.
 6. **Runtime hôte Bevy** — ordonnance l'application et présente l'image/audio produits par le modèle matériel. La surface de présentation reste distincte de l'état matériel canonique.
 7. **Validation différentielle** — jeux de tests ARM/Thumb, traces reproductibles et comparaison des effets observables avec un oracle documenté.

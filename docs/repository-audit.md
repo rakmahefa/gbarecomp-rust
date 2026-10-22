@@ -1,45 +1,47 @@
 # Audit d'inventaire des fichiers du dépôt
 
 - **Dernière revue :** 2026-10-22
-- **Portée :** inventaire des fichiers suivis sur `phase-1/rust-bevy-static-only` au moment de la revue.
-- **Cadence :** mettre à jour cet inventaire à chaque groupe de travail qui ajoute, supprime, renomme ou change le rôle d'un fichier ; faire une revue complète au minimum avant chaque release.
-- **Complément :** [`audit.md`](../audit.md) porte sur les risques techniques, de licence et de distribution ; ce document suit les fichiers eux-mêmes.
+- **Portée :** inventaire des fichiers suivis sur `phase-1/rust-bevy-static-only` pour le groupe du parseur d'en-tête GBA.
+- **Cadence :** actualiser l'inventaire à chaque groupe de travail qui ajoute, supprime, renomme ou change le rôle d'un fichier ; faire une revue complète au minimum avant chaque release.
+- **Complément :** [`audit.md`](../audit.md) suit les risques techniques, licences et distribution ; le présent document suit les fichiers eux-mêmes.
 
 ## Inventaire
 
 | Chemin | Rôle et contrat | État | Revue requise quand… |
 | --- | --- | --- | --- |
-| `.gitignore` | Exclut `target/`, sorties locales, analyses REA et ROM ; permet de garder uniquement `rom/README.md`. | En place | Un nouvel outil ou une sortie générée crée des fichiers locaux. |
-| `Cargo.toml` | Manifeste du crate hôte. Bevy exactement `=0.20.0`, feature set initial 2D. | Squelette compilable attendu par CI | Dépendances/features ou structure du workspace changent. |
-| `Cargo.lock` | Verrouille le graphe de dépendances, utilisé avec `--locked`. | La résolution Bevy 0.20 feature `2d` est acceptée par le run CI 39746308189 avec `--locked`. | Cargo.toml ou les dépendances changent. Générer avec Cargo, jamais l'éditer manuellement. |
-| `rust-toolchain.toml` | Épingle Rust `1.98.1` et les composants rustfmt/Clippy. | En place | MSRV, Bevy ou images de runners changent. |
-| `src/main.rs` | Point d'entrée : démarre le runtime Bevy. | Squelette | Le lancement ou l'initialisation globale change. |
-| `src/lib.rs` | Expose les modules de runtime et de recompilation. | Squelette | Les couches du crate ou les API publiques changent. |
-| `src/runtime.rs` | Construction de l'application Bevy et scène visuelle provisoire. | Compilation, Clippy et tests validés par le run CI 39746308189 ; reste un placeholder sans chargement ROM ni test de fenêtre interactive. | Fenêtre, présentation, périphériques ou initialisation du matériel changent. |
-| `src/recompiler/mod.rs` | Types de diagnostic du contrat de recompilation statique, sans fallback runtime. | Types/tests initiaux ; analyseur absent | Instructions, flux de contrôle, IR ou stratégies de rejet sont ajoutés. |
-| `README.md` | Objectif, état réel, références, contrainte Rust statique et procédures. | Revu dans cette PR | Chaque groupe de travail modifie le statut, l'architecture, les commandes ou les workflows. |
-| `SESSION_HANDOFF.md` | Passation chronologique, commits, validations et prochaines actions. | Revu dans chaque commit de clôture | Toujours : mettre à jour avant le commit qui clôt un groupe. |
-| `audit.md` | Risques techniques, ROM, licences et distribution. | Risques ouverts explicités | Nouvelle surface de sécurité, réutilisation de code, livraison ou résultat de CI. |
-| `docs/repository-audit.md` | Présent document ; inventaire et cadence d'entretien. | En place | Tout changement de fichiers ou de responsabilité. |
-| `docs/architecture.md` | Couches analyse ARM/Thumb, IR, émission Rust, matériel GBA et runtime Bevy ; aucun interpréteur/JIT. | Contrat cible ; composants non implémentés | Décision d'architecture ou nouveau sous-système. |
-| `docs/development.md` | Environnement Linux, dépendances natives et commandes de validation. | Guide initial | Toolchain, dépendances système ou commandes changent. |
-| `docs/workflows.md` | Déclencheurs, concurrence, réutilisation des artefacts et sécurité du packaging. | Stratégie documentée ; CI en cours de validation | Un workflow change ou son vrai résultat diverge du plan. |
-| `docs/rea.md` | Bundle REA, procédure et limite entre packaging et analyse interactive. | En place | Version REA, dépendances ou format de bundle changent. |
-| `docs/reference-projects.md` | Références GBARecomp et REA, différences techniques et limites de licence. | En place | Les dépôts, licences ou méthodes pertinentes changent. |
-| `docs/decisions/ADR-0001-static-rust-recompilation.md` | Décision contraignante : émettre du Rust et le compiler avant lancement ; pas d'interpréteur/JIT. | Accepté | Un changement proposé toucherait le contrat statique ; toute modification doit être une décision explicite. |
-| `.github/workflows/ci.yml` | Vérifie le patch, bloque les ROM suivies, installe les bibliothèques Linux puis exécute fmt, Clippy et tests. | Succès au run 39746308189 pour le commit de code bcd0b8f8c124b6cc9a5ae61357fe245120817183. | Un test, une dépendance native ou une règle d'exclusion change. |
-| `.github/workflows/build.yml` | Build Linux après la CI réussie de `main`, fabrique distribution et entrée REA depuis une compilation. | Non déclenché sur une PR ; à valider après fusion et push `main` | Packaging, cible, profils Cargo ou format des artefacts changent. |
-| `.github/workflows/release.yml` | Publication manuelle d'un artefact existant après validation du tag/commit et checksum. | Manuel ; pas de compilation | Politique de tag, permissions ou contenu de release change. |
-| `.github/workflows/rea-analysis.yml` | Produit un bundle REA depuis l'artefact d'analyse, sans compilation. | Manuel ; pas une analyse d'agent automatique | Version Node/REA, contexte REA ou contrat du bundle change. |
-| `rom/README.md` | Instructions pour placer une ROM légalement obtenue uniquement en local. | Document suivi ; ROM elle-même ignorée | Chemin ou politique ROM change. |
+| `.gitignore` | Exclut `target/`, sorties locales, analyses REA et ROM ; garde seulement `rom/README.md`. | En place | Un outil ou une sortie générée crée de nouveaux fichiers locaux. |
+| `Cargo.toml` | Manifeste du crate ; Bevy exactement `=0.20.0`, feature set 2D initial. | Scaffold compilé par CI | Dépendances, features ou structure du workspace changent. |
+| `Cargo.lock` | Verrouille les dépendances ; utilisé avec `--locked`. | Bevy 0.20 / feature 2D validé sous `--locked` par CI | Dépendances changent ; générer avec Cargo, ne jamais l'éditer manuellement. |
+| `rust-toolchain.toml` | Épingle Rust `1.98.1` et les composants rustfmt/Clippy. | En place | MSRV, Bevy ou image de runner change. |
+| `src/main.rs` | Point d'entrée qui démarre le runtime Bevy. | Squelette ; pas de jeu recompilé | Lancement ou initialisation globale change. |
+| `src/lib.rs` | Expose les modules `recompiler`, `rom` et `runtime`. | Mis à jour avec le parseur d'en-tête | La structure des couches/API change. |
+| `src/rom/mod.rs` | Expose `GbaHeader`, `RomHeaderError` et la taille du header. | Ajouté dans ce groupe ; CI du commit courant en attente | Ajout de sous-modules ROM ou changement de l'API publique. |
+| `src/rom/header.rs` | Parse le header GBA fixe de 0xC0 octets : point d'entrée, titre, codes, octets de contrôle, version et complement checksum. | Parseur initial et trois tests synthétiques ajoutés ; résultat CI courant en attente. Ne lit/exécute pas d'instructions et ne dépend pas d'une vraie ROM. | Champs, checksum, politique de rejet ou validation ROM changent. |
+| `src/recompiler/mod.rs` | Diagnostics du contrat statique ; pas de fallback runtime. | Erreurs/tests initiaux, aucun décodeur encore | Instructions, flux de contrôle, IR et rejet statique changent. |
+| `src/runtime.rs` | Application Bevy et scène visuelle provisoire. | Compilation/Clippy/tests du scaffold validés ; fenêtre interactive pas encore testée localement. Ne charge pas de ROM. | Présentation ou initialisation du matériel change. |
+| `README.md` | Objectifs, état réel, références, règles de recompilation et workflows. | Mis à jour pour le parseur d'en-tête ; validation CI du nouveau commit en attente. | État fonctionnel, architecture, commandes ou workflows changent. |
+| `SESSION_HANDOFF.md` | Passation chronologique, commits, validations et prochaine action. | Mis à jour pour le groupe du parseur ; à actualiser avant chaque commit de clôture. | Toujours à chaque groupe de travail. |
+| `audit.md` | Risques de ROM, licence, exécution statique, validations et distribution. | Mis à jour ; le parseur est identifié comme limité et en attente de CI. | Nouveau risque, résultat de CI, réutilisation de code ou livraison. |
+| `docs/repository-audit.md` | Présent inventaire des chemins, rôles, états et cadences de revue. | Mis à jour pour les nouveaux fichiers ROM. | Chaque changement de fichiers/rôle ; revue complète avant release. |
+| `docs/architecture.md` | Couches header, analyse ARM/Thumb, IR, émission Rust, matériel et Bevy. | Précise que le header est le premier sous-système ; les couches restantes restent à faire. | Décision architecturale ou nouveau sous-système. |
+| `docs/development.md` | Environnement Linux, dépendances natives et commandes de validation. | Mis à jour sur le parseur et les limites de tests synthétiques. | Toolchain, dépendances système ou commandes changent. |
+| `docs/workflows.md` | Déclencheurs, concurrence, réutilisation des artefacts et packaging. | CI scaffold antérieur passée ; Build release non encore validé après fusion de code Rust. | Workflow ou résultat observé diverge de la stratégie. |
+| `docs/rea.md` | Contrat et procédure du bundle REA. | Manuel ; pas une exécution d'agent autonome. | Version REA/Node ou format de bundle change. |
+| `docs/reference-projects.md` | Références GBARecomp et REA, différences et licence. | En place | Références, licences ou stratégie de portage changent. |
+| `docs/decisions/ADR-0001-static-rust-recompilation.md` | Décision : générer du Rust compilé avant lancement, sans interpréteur/JIT. | Accepté | Un changement toucherait au contrat statique ; il nécessite une décision explicite. |
+| `.github/workflows/ci.yml` | Vérifie le patch, rejette ROM binaires suivies, installe dépendances Linux et exécute fmt/Clippy/tests. | Run `39746990377` vert sur le scaffold précédent ; le commit du parseur doit être validé. | Dépendance native, règle d'exclusion ou test change. |
+| `.github/workflows/build.yml` | Build release Linux après succès CI sur push `main` ; distribution + entrée REA d'une même compilation. | PRs ignorées intentionnellement ; validation release/build attend le push de main après fusion. | Packaging, cible, profil Cargo ou artefacts change. |
+| `.github/workflows/release.yml` | Publie manuellement un artefact existant après validation tag/commit/checksum. | Manuel ; pas de compilation. | Politique de tag, droits ou format de release change. |
+| `.github/workflows/rea-analysis.yml` | Prépare un bundle REA depuis l'artefact existant sans recompiler. | Manuel ; n'affirme pas effectuer une investigation agent automatique. | Node/REA ou format du bundle change. |
+| `rom/README.md` | Explique comment placer une ROM légalement obtenue uniquement en local. | Seul fichier suivi dans `rom/` ; rom binaire ignorée. | Chemin ou politique de ROM change. |
 
 ## Règle de mise à jour obligatoire
 
-À chaque groupe de travail, avant son commit de clôture :
+À chaque groupe de travail, avant le commit de clôture :
 
-1. Mettre à jour ce fichier si l'inventaire, le rôle ou l'état d'un fichier change.
-2. Mettre à jour `audit.md` si le risque, les licences, l'état de validation ou la politique de distribution changent.
-3. Relire et mettre à jour `README.md` pour refléter l'état réellement livré, les commandes qui fonctionnent et les limitations actuelles.
-4. Mettre à jour `SESSION_HANDOFF.md` en dernier avec le groupe, la date, les chemins touchés, les validations exécutées (et celles qui ont échoué), le SHA du commit et la prochaine étape.
+1. Actualiser le présent inventaire si les chemins, responsabilités ou états changent.
+2. Relire et mettre à jour `audit.md` si les risques, licences, résultats de validation ou règles de distribution changent.
+3. Relire et mettre à jour `README.md` pour qu'il décrive l'état réellement livré, les tests et limitations du moment.
+4. Mettre à jour `SESSION_HANDOFF.md` avec groupe/date, fichiers revus, changements, résultats et échecs réels, SHA du commit et prochaine étape.
 
-Une vérification non exécutée doit être marquée **non vérifiée**, pas comme un succès. Avant release, faire une revue complète des fichiers inclus dans les artefacts et vérifier qu'aucune ROM/BIOS/sauvegarde/code ROM dérivé ne s'y trouve.
+Une vérification non exécutée doit être marquée **non vérifiée**, pas comme un succès. Avant une release, examiner la liste exacte de fichiers empaquetés et vérifier qu'aucune ROM/BIOS/sauvegarde/code ROM dérivé n'est présent.

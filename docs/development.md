@@ -34,13 +34,13 @@ cargo build --release --locked --workspace --bins
 cargo run --release --locked
 ```
 
+La CI Linux précédente a validé formatage, Clippy et tests du scaffold. La nouvelle tranche du parseur d'en-tête utilise uniquement un en-tête GBA synthétique dans les tests ; les tests ne dépendent pas de la ROM de développement locale. La fenêtre Bevy est compilée, mais son lancement interactif n'a pas encore été vérifié localement.
+
 La première compilation Bevy est lourde ; le workflow CI met en cache le registre et les artefacts Cargo pour réutiliser le travail entre exécutions compatibles.
 
-## État fonctionnel actuel
+## Parseur d'en-tête et ROM locale
 
-Le binaire ouvre une fenêtre Bevy avec une forme de remplacement. Il ne charge ni ne recompile de ROM. Les prochaines étapes sont l'identification de cartouche, le décodeur ARM/Thumb, l'IR et l'émission de fonctions Rust. Le résultat généré doit être compilé avant le lancement du programme : aucune interprétation des instructions et aucun JIT ne sont prévus dans le runtime.
-
-## ROM locale
+Le parseur actuel inspecte les champs fixes du header de 0xC0 octets et rapporte si le complement checksum correspond. Une entrée trop courte produit une erreur structurelle. Un checksum invalide est signalé sans masquer les autres champs ; il ne provoque pas encore un rejet automatique. Ceci ne constitue ni un chargeur de ROM complet, ni un décodeur ARM/Thumb, ni une recompilation.
 
 La ROM de test doit être présente localement dans `rom/` et ignorée par Git. Vérifier avec :
 

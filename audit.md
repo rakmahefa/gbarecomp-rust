@@ -2,7 +2,7 @@
 
 ## Résumé
 
-La Phase 0 a préparé les garde-fous du dépôt. La Phase 1 ajoute le premier crate Rust et une application Bevy minimale. Il s'agit d'un scaffold de runtime, pas encore d'un recompilateur opérationnel : l'analyse ROM, l'IR, l'émission du code Rust et le modèle matériel restent à implémenter.
+La CI Linux a validé le scaffold Rust/Bevy, son formatage, Clippy et ses tests au run [39746990377](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746990377). Cette tranche ajoute un parseur de l'en-tête fixe GBA et des tests synthétiques. Elle ne constitue pas encore un recompilateur : le chargement complet de ROM, le décodeur ARM/Thumb, l'IR, l'émission Rust et le modèle matériel restent à implémenter.
 
 ## Constatations et actions
 
@@ -18,7 +18,7 @@ Si sa redistribution publique n'est pas autorisée, une purge d'historique coord
 
 **Sévérité : élevée pour la couverture fonctionnelle ; attendue à ce stade.**
 
-Le scaffold a un crate compilable et la fenêtre Bevy de base, mais ne lit ni ne recompile encore une ROM. Il n'existe pas de preuve de compatibilité avec un jeu GBA tant que les tests du décodeur, de l'IR, des effets matériels et de l'émission Rust ne sont pas créés et exécutés.
+Un parseur d'en-tête fixe est maintenant présent. Il lit les 0xC0 premiers octets requis, décode le point d'entrée et les champs de titre, game code, maker code, unité, device type et version ; il calcule aussi le complement checksum. Il ne charge pas à lui seul la ROM entière, ne trouve pas les fonctions invitées et ne génère pas encore de code Rust. Il n'existe donc toujours pas de preuve de compatibilité avec un jeu GBA.
 
 ### A-03 — Licence de la référence C++ à vérifier avant tout portage de code
 
@@ -46,21 +46,29 @@ Le code généré est du Rust compilé avant distribution avec Cargo/rustc. Aucu
 
 La recompilation doit préserver les effets observables du CPU ARM7TDMI et des services matériels GBA. Le rendu Bevy est une couche de présentation et ne constitue pas l'état matériel canonique. Les contrats du bus, registres E/S, interruptions, DMA, timers, PPU, audio et sauvegardes doivent être documentés et testés. Aucun support de jeu ne doit être déclaré à partir du seul fait que le binaire compile.
 
-## Audit des fichiers et cadence documentaire
+### A-07 — Cohérence de Cargo.lock sous --locked
 
-L'inventaire fichier par fichier se trouve dans [docs/repository-audit.md](docs/repository-audit.md). À chaque groupe de travail significatif, revoir ce document, le présent audit et `README.md`, puis consigner dans `SESSION_HANDOFF.md` lesquels ont été relus et ce qui a changé. Une mise à jour est requise même si la conclusion est qu'aucun changement n'est nécessaire ; ne pas laisser ces fichiers dériver du dépôt ou de l'état réel de CI.
+**État : résolu et validé.**
 
-### A-07 — Cargo.lock ne correspondait pas au manifeste actif
+Le run CI `39745465091` a révélé que le lockfile initial adapté depuis un projet Bevy plus large ne correspondait pas exactement au manifeste minimal. Il a été remplacé par une résolution Bevy 0.20.0 avec la feature 2d seule. Le run [39746308189](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746308189) a validé Clippy et les tests avec `--locked`. Ne pas retirer `--locked` pour masquer une divergence future.
 
-**Sévérité : moyenne — résolu et validé par la CI.**
+### A-08 — Type de retour du builder Bevy
 
-Le run CI `39745465091` a révélé que le lockfile initial, adapté depuis un projet Bevy plus large, ne correspondait pas exactement au manifeste 2D minimal. Le lockfile a été remplacé par une résolution générée pour Bevy `0.20.0` avec la feature `2d` seule. Le run [CI `39746308189`](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746308189) a ensuite réussi avec `--locked` ; ne pas lever ce verrou pour contourner une future divergence.
+**État : résolu et validé.**
 
-### A-08 — Construction de l'application Bevy avec type de retour incorrect
+Le run `39745818857` a détecté que la chaîne de configuration Bevy retournait `&mut App`, et non `App`. Le builder configure désormais une variable locale et retourne explicitement l'application. La CI [39746308189](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746308189) passe depuis ce correctif.
 
-**Sévérité : moyenne — résolu et validé par la CI.**
+### A-09 — Parseur de l'en-tête GBA : périmètre limité
 
-Le run `39745818857` a trouvé que la chaîne de configuration Bevy renvoyait `&mut App` plutôt que `App`. `build_app()` configure maintenant une variable locale et retourne explicitement l'application. Le run [CI `39746308189`](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746308189) passe le formatage, Clippy et les tests.
+**État : implémenté dans la branche ; validation CI du commit courant en attente.**
+
+Le parseur vérifie qu'au moins 0xC0 octets sont disponibles, extrait le point d'entrée et les champs fixes, expose les octets de titre/code/maker sans les normaliser et signale le complement checksum calculé. Le checksum incohérent est une information diagnostique et ne fait pas échouer le parsing structurel. Les tests utilisent uniquement une fixture synthétique, jamais la ROM de développement.
+
+Ce composant ne doit ni interpréter des instructions, ni exécuter du contenu ROM, ni déclencher une compilation de code invité. L'analyse et la génération de code restent des étapes statiques de build qui viendront plus tard.
+
+## Cadence de mise à jour de l'audit
+
+À chaque groupe de travail significatif, revoir le présent audit, le README et [l'inventaire détaillé](docs/repository-audit.md), puis noter dans [SESSION_HANDOFF.md](SESSION_HANDOFF.md) la réalité du dépôt, les résultats CI exécutés, le commit et les risques restant ouverts. Faire une revue exhaustive avant chaque release.
 
 ## Références de workflows
 
