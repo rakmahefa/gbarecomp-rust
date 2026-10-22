@@ -1,38 +1,37 @@
 # GBARecomp Rust
 
-Projet expérimental de **recompilation statique Game Boy Advance en Rust**, avec **Bevy comme runtime hôte**. Cible initiale : **Linux x86_64 uniquement**.
+Projet expérimental de **recompilation statique GBA qui génère du code Rust natif**, avec **Bevy comme runtime hôte**. Cible initiale : **Linux x86_64 uniquement**.
 
-L'objectif est de traduire du code machine ARM7TDMI (ARM et Thumb) issu d'une ROM GBA en code natif, puis de l'exécuter contre un modèle explicite du matériel GBA. Bevy doit fournir l'intégration hôte — fenêtre, rendu et boucle d'application — sans devenir une réécriture du jeu ni remplacer le modèle matériel par des approximations de présentation.
+L'objectif est d'analyser le code machine ARM7TDMI (ARM et Thumb) d'une ROM GBA, de générer des fonctions Rust équivalentes, puis de compiler ces sources avant lancement avec Cargo/rustc. Le modèle matériel GBA reste la source de vérité de l'état invité ; Bevy assure la fenêtre, la présentation, l'entrée et l'intégration hôte.
+
+> **Invariant non négociable : génération Rust statique uniquement. Aucun interpréteur invité, aucun JIT, aucune traduction de code invité à l'exécution.** Un flux de contrôle qui ne peut pas être résolu statiquement doit échouer à l'étape de recompilation avec un diagnostic, sans no-op silencieux ni fallback d'exécution.
 
 ## État du projet
 
-Nous sommes en Phase 0 : préparation du dépôt et des workflows. Le dépôt ne contient pas encore de manifeste Cargo ni de crate compilable. Les workflows de CI sont prêts à évoluer avec le code ; le build et les artefacts sont conditionnés à l'existence de Cargo.toml et d'au moins une cible binaire. L'absence de build à ce stade ne sera pas présentée comme un build réussi.
+Le scaffold Rust/Bevy et le parseur d'en-tête, y compris le champ `entry_branch_opcode`, passent la CI Linux ([run 39749349856](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39749349856), commit `e811b898346d654948266ef3989b4497aef70bad`). La tranche suivante ajoute un objet ROM et le mapping des trois fenêtres Game Pak ; la CI de ce nouvel ajout doit encore le valider.
 
-## Références du projet
+Le parseur lit les champs fixes de l'en-tête de 0xC0 octets, expose le mot d'instruction ARM de branchement aux offsets 0..4 (sans prétendre avoir résolu sa destination), et signale la validité du checksum. L'objet `GbaRom` ajoute le mapping d'adresses CPU des fenêtres ROM 0x08/0x0A/0x0C vers des offsets et garde le wait-state dans le résultat. Les tests restent synthétiques ; aucune ROM réelle n'est requise. Le décodeur ARM/Thumb, l'IR, l'émission de fonctions Rust et le modèle matériel ne sont pas encore implémentés. La fenêtre Bevy reste un placeholder et ne représente pas un jeu exécuté.
 
-- **[mstan/gbarecomp](https://github.com/mstan/gbarecomp)** : référence technique principale et dépôt le plus complet identifié pour la recompilation GBA et le runtime matériel. Il s'agit d'un projet C++ avec ses propres contraintes de build et une licence PolyForm Noncommercial ; voir [l'audit](audit.md) avant tout portage de code.
-- **[morluto/rea](https://github.com/morluto/rea)** : boîte à outils d'ingénierie inverse utilisable depuis un agent/MCP et des moteurs d'analyse natifs. La licence du dépôt REA est MIT. Le workflow de ce dépôt prépare un bundle d'analyse réutilisable ; il ne prétend pas exécuter une session d'agent interactive dans GitHub Actions.
+## Références
 
-## Développement local
+- **[mstan/gbarecomp](https://github.com/mstan/gbarecomp)** — référence technique principale pour l'analyse ARM/Thumb et le modèle matériel GBA. Le projet amont est principalement en C++ et utilise PolyForm Noncommercial 1.0.0 ; ses mécanismes de secours à l'exécution ne sont pas adoptés ici. Voir [l'audit technique](audit.md), [l'inventaire des fichiers](docs/repository-audit.md) et [les références](docs/reference-projects.md).
+- **[morluto/rea](https://github.com/morluto/rea)** — outil d'ingénierie inverse via CLI/MCP et moteurs d'analyse natifs. Le workflow REA prépare un bundle d'analyse ; il ne prétend pas exécuter une session d'agent dans GitHub Actions.
 
-1. Installer Rust stable et Cargo sur Linux.
-2. Garder la ROM de test dans le répertoire rom/ uniquement sur la machine de développement. Les ROM ne sont pas des sources du projet et ne doivent pas être commitées ni incluses dans une release.
-3. Lire [le guide de développement](docs/development.md), [l'architecture cible](docs/architecture.md) et [les workflows](docs/workflows.md).
-4. Consulter SESSION_HANDOFF.md avant de reprendre une session et le mettre à jour dans chaque commit qui constitue un groupe de travail.
+## Développement Linux
 
-## Workflows GitHub Actions
+Voir [le guide de développement](docs/development.md), [l'architecture](docs/architecture.md), [les décisions](docs/decisions/ADR-0001-static-rust-recompilation.md) et [les workflows](docs/workflows.md). Bevy est épinglé à `0.20.0`, et `rust-toolchain.toml` fixe Rust à `1.98.1`.
+
+La ROM de développement doit être fournie localement et rester ignorée par Git. Une ROM, un BIOS, une sauvegarde ou des données dérivées ne doivent jamais être inclus dans les artefacts ou releases.
+
+## Workflows
 
 | Workflow | Déclenchement | Rôle |
 | --- | --- | --- |
-| CI (Linux) | PR vers main, push sur main, lancement manuel | Hygiène du dépôt et vérifications Rust si Cargo est présent |
-| Build (Linux) | Après la CI verte d'un push sur main | Un seul build release, deux artefacts réutilisables |
-| Release (manual) | Manuel | Vérifie tag + build, puis publie l'artefact existant sans recompiler |
-| REA analysis bundle (manual) | Manuel | Récupère l'artefact de build, vérifie son intégrité et prépare le paquet REA |
+| CI (Linux) | PR vers `main`, push sur `main`, lancement manuel | Hygiène, formatage Rust, Clippy et tests |
+| Build (Linux) | Après la CI verte d'un push sur `main` | Une compilation release, paquet de distribution + entrée REA |
+| Release (manual) | Déclenchement manuel | Validation tag/build, publication de l'artefact existant sans recompiler |
+| REA analysis bundle (manual) | Déclenchement manuel | Vérification et préparation d'un bundle REA depuis l'artefact existant |
 
-La stratégie détaillée et les limites actuelles sont décrites dans [docs/workflows.md](docs/workflows.md). L'audit initial se trouve dans [audit.md](audit.md).
+## Maintenance de la documentation
 
-## Licence et ROM
-
-La licence du code propre à ce dépôt reste à choisir avant d'importer ou d'écrire une quantité significative de code. La licence des références n'est pas automatiquement celle de ce projet.
-
-Les droits d'utilisation et de redistribution de la ROM de test doivent être vérifiés séparément. Le fichier ROM présent dans l'historique initial a été retiré de l'arbre de travail préparé par cette Phase 0 ; la suppression d'un fichier ne purge pas les anciens commits Git. Détails dans [audit.md](audit.md).
+À chaque groupe de travail significatif, relire et mettre à jour si nécessaire **README.md**, **audit.md**, **docs/repository-audit.md** et **SESSION_HANDOFF.md**. L'audit et l'inventaire doivent refléter le dépôt réel et les résultats de CI, pas des intentions. Le handoff consigne les fichiers revus, les validations réellement exécutées, le SHA du commit et les risques restant ouverts. Faire une revue complète de l'inventaire avant chaque release.

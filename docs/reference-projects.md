@@ -1,10 +1,10 @@
 # Références techniques
 
-## GBARecomp — référence principale
+## GBARecomp — référence technique principale
 
 Dépôt : [mstan/gbarecomp](https://github.com/mstan/gbarecomp)
 
-Le README et le guide d'architecture décrivent une recompilation statique ARM/Thumb vers du code natif, liée à un runtime partagé qui modélise les effets matériels GBA. C'est la référence technique principale pour identifier les problèmes à couvrir : découverte de fonctions, transitions ARM/Thumb, dispatch, accès mémoire, PPU/audio/DMA/timers/IRQ, sauvegardes et chemins de repli.
+Le README et l'architecture amont documentent une recompilation statique ARM/Thumb vers du code natif C++ ainsi qu'un runtime partagé modélisant le matériel GBA. Les problèmes à étudier comprennent la découverte de fonctions, l'interworking ARM/Thumb, les cibles indirectes, les accès mémoire, la PPU, l'audio, le DMA, les timers, les IRQ et les sauvegardes.
 
 À lire en priorité :
 
@@ -14,19 +14,26 @@ Le README et le guide d'architecture décrivent une recompilation statique ARM/T
 - [Principles](https://github.com/mstan/gbarecomp/blob/main/PRINCIPLES.md)
 - [GBA accuracy burndown](https://github.com/mstan/gbarecomp/blob/main/GBA_ACCURACY_BURNDOWN.md)
 
-Le guide Getting started actuel du dépôt référence un chemin C++/CMake/Windows. Ne pas copier ses commandes comme si elles constituaient un build Rust/Linux. Le modèle de couche et les problèmes de fidélité sont pertinents ; l'outillage doit être adapté séparément.
+Le guide amont contient un parcours C++/CMake/Windows ; il ne décrit pas le build de ce projet Rust/Linux. La référence sert à étudier l'architecture et les comportements matériels, pas à copier automatiquement le code.
 
-**Licence :** le dépôt indique PolyForm Noncommercial 1.0.0. Étudier les documents et tester les comportements n'équivaut pas à obtenir le droit de copier le code source. Voir [audit.md](../audit.md).
+**Différence explicite :** ce projet émet du **Rust** à compiler avant distribution. Les mécanismes amont d'interpréteur/résolution dynamique en runtime ne sont pas adoptés ; les inconnues statiques deviennent des erreurs explicites jusqu'à l'implémentation d'un traitement statique correct.
+
+**Licence :** le dépôt amont indique PolyForm Noncommercial 1.0.0. Étudier ses comportements n'accorde pas le droit de copier son code. Voir [audit.md](../audit.md).
 
 ## REA — outil d'analyse inverse
 
 Dépôt : [morluto/rea](https://github.com/morluto/rea)
 
-REA fournit une interface CLI/MCP et des workflows d'analyse pour les binaires et les applications. Certaines tâches d'analyse native dépendent d'un moteur configuré (par exemple Ghidra, Hopper ou IDA) et d'une session d'agent connectée. Le workflow Actions de ce dépôt ne prétend pas installer ni piloter automatiquement un environnement GUI/agent complet.
+REA fournit une CLI/MCP et des workflows d'analyse pour binaires et applications. Certaines analyses natives requièrent un moteur configuré (par exemple Ghidra, Hopper ou IDA) et une session d'agent connectée ; le workflow GitHub de ce projet prépare le bundle mais n'émule pas ce contexte.
 
 - [README et installation](https://github.com/morluto/rea#readme)
 - [Guide d'installation](https://github.com/morluto/rea/blob/main/docs/installation.md)
 - [Catalogue des outils MCP](https://github.com/morluto/rea/blob/main/docs/mcp-contracts.md)
 - [Licence MIT](https://github.com/morluto/rea/blob/main/LICENSE)
 
-Le package REA utilisé par le workflow est épinglé à rea-agents@6.7.0. Mettre à jour cette version seulement lors d'un groupe de travail qui vérifie la compatibilité et note le changement dans SESSION_HANDOFF.md.
+Le workflow épingle `rea-agents@6.7.0`. Modifier cette version seulement dans un groupe de travail qui vérifie sa compatibilité et met à jour `SESSION_HANDOFF.md`.
+
+
+## Carte mémoire GBA
+
+Pour les adresses du bus et les fenêtres Game Pak, consulter aussi le [guide mémoire GBA de gbadev](https://gbadev.net/gbadoc/memory.html). Il documente les trois fenêtres ROM de 32 MiB aux bases 0x08000000, 0x0A000000 et 0x0C000000, avec des réglages de wait-state distincts. Ce dépôt implémente son propre mapping Rust ; les détails de mirroring restent couverts par des tests, et les cas qu'on ne sait pas déterminer statiquement échouent explicitement.

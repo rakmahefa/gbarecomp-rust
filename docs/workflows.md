@@ -2,30 +2,29 @@
 
 ## Dépendances et ordre d'exécution
 
-La stratégie évite de compiler dans quatre workflows distincts :
+1. **CI (Linux)** tourne automatiquement sur PR vers `main` et push à `main`. Elle vérifie le patch, rejette les ROM/BIOS/sauvegardes suivies et exécute formatage, Clippy et tests en mode verrouillé (`Cargo.lock`).
+2. **Build (Linux)** s'exécute via `workflow_run` après succès de la CI d'un push sur `main`. Il compile en release une seule fois avec les symboles nécessaires à l'analyse.
+3. Cette compilation alimente deux paquets : `gbarecomp-linux-x86_64`, dont le binaire de distribution est strip, et `rea-analysis-input`, qui conserve les symboles et les rapports ELF. Pas de second build pour REA.
+4. **Release (manual)** prend l'ID d'un build réussi et un tag existant. Elle valide que le tag pointe exactement sur le commit sélectionné, contrôle le checksum et la présence de fichiers ROM/save, puis publie l'artefact existant. Aucun compilateur Rust ne tourne dans ce workflow.
+5. **REA analysis bundle (manual)** télécharge l'artefact d'analyse d'un build donné, vérifie le checksum et produit un bundle documenté. Il vérifie la CLI REA épinglée mais ne prétend pas exécuter une investigation autonome menée par un agent dans GitHub Actions.
 
-1. **CI (Linux)** démarre automatiquement sur pull request vers main et sur push à main. Elle réalise les contrôles génériques de dépôt et, quand Cargo.toml existe, cargo fmt, Clippy et les tests.
-2. **Build (Linux)** est déclenché par l'événement workflow_run après la fin de CI. Il ne poursuit que pour un push réussi sur main. La compilation release se déroule donc après la CI, pas en concurrence avec elle.
-3. Le build produit deux artefacts à partir de la même compilation : gbarecomp-linux-x86_64 (binaire de distribution dont la copie est strip, pour limiter sa taille) et rea-analysis-input (copie non strip conservant les symboles et les rapports ELF). L'archive de release est construite par liste blanche ; le répertoire ROM n'est jamais copié.
-4. **Release (manual)** reçoit l'identifiant d'un run Build et un tag. Il vérifie que le run a réussi, que le tag désigne exactement le même commit, puis télécharge l'artefact existant et crée la release. Aucune compilation n'y est faite.
-5. **REA analysis bundle (manual)** reçoit l'identifiant d'un run Build, télécharge rea-analysis-input, vérifie le checksum et produit un bundle annoté. Aucune compilation n'y est faite.
+## Règles de concurrence et coût
 
-## Règles de concurrence
-
-- La CI annule une exécution devenue obsolète pour le même PR/branche.
-- Le build Linux utilise un groupe de concurrence commun à main et peut annuler un build plus ancien si un nouveau commit arrive.
-- La release et REA sont manuels et ne déclenchent pas de build. Ils réutilisent les artefacts par run ID.
-- Pas de planification périodique, de matrice OS ou d'architecture : Linux x86_64 seulement pour la première phase.
+- La CI annule les jobs obsolètes pour la même PR/branche.
+- Le build ne démarre qu'après la CI verte sur `main`, jamais en parallèle des checks d'une PR.
+- Le build réutilise le cache Cargo, n'effectue qu'une compilation native release et partage le résultat entre distribution et REA.
+- Release et REA sont manuels et ne compilent rien ; ils sélectionnent un build avec son identifiant de run.
+- Une seule plateforme cible est définie : Linux x86_64.
 
 ## Artefacts et sécurité
 
-- Durée de rétention : 14 jours. Pour une publication tardive, relancer le build au bon commit plutôt que reconstruire implicitement dans la release.
-- Le workflow de release refuse un tag qui ne désigne pas le commit du build sélectionné.
-- CI échoue si une ROM ou une sauvegarde reste suivie dans le dépôt.
-- Les archives de release sont inspectées pour vérifier qu'elles ne contiennent pas de fichiers ROM/save reconnus.
-- Aucun secret externe n'est requis ; les permissions du token sont restreintes par workflow.
-- Les workflows s'appuient sur des versions majeures d'actions GitHub courantes. Avant un usage de publication à long terme, épingler les actions tierces par SHA complet selon la politique de sécurité du projet.
+- Retention des artefacts Actions : 14 jours.
+- La release refuse un tag qui ne correspond pas au commit du build et n'écrase pas une release existante.
+- La CI échoue si des fichiers ROM/BIOS/sauvegarde restent suivis.
+- L'archive release est construite par liste blanche et analysée avant publication ; aucune ROM, aucun BIOS, aucune sauvegarde ni code ROM dérivé n'est ajouté.
+- Permissions du token limitées selon le workflow. Aucun secret externe n'est requis pour les builds de base.
+- Les versions d'actions GitHub sont en tags majeurs ; avant une publication de long terme, envisager des pins SHA complets.
 
-## Limite actuelle de Phase 0
+## Limite d'analyse
 
-Sans Cargo.toml, aucun binaire ni artefact n'est produit : le workflow Build termine avec un résumé explicite indiquant que le projet Rust n'est pas encore initialisé. Après ajout du crate, il exige au moins une cible binaire. Il faudra étendre la liste blanche de packaging si le runtime Bevy nécessite des ressources supplémentaires.
+Le bundle REA contient le binaire hôte avec symboles, les rapports ELF, les métadonnées et les consignes. Il ne contient ni ROM, ni BIOS, ni code Rust généré à partir d'une ROM. REA sert à explorer les binaires et les traces hors de l'exécution principale ; le runtime livré reste exclusivement statique, sans interpréteur ni JIT.
