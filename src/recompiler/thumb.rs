@@ -6,12 +6,20 @@
 pub enum ThumbInstruction {
     Branch { offset: i32 },
     ConditionalBranch { condition: u8, offset: i32 },
-    MoveImmediate { rd: u8, immediate: u8 },
+    AluImmediate { operation: ThumbImmediateOp, rd: u8, immediate: u8 },
     BranchExchange { rm: u8 },
     SoftwareInterrupt { comment: u8 },
     LongBranchPrefix { offset: i32 },
     LongBranchSuffix { offset: u16 },
     Unsupported,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThumbImmediateOp {
+    Move,
+    Compare,
+    Add,
+    Subtract,
 }
 
 pub fn decode(word: u16) -> ThumbInstruction {
@@ -56,8 +64,15 @@ pub fn decode(word: u16) -> ThumbInstruction {
         };
     }
 
-    if word & 0xF800 == 0x2000 {
-        return ThumbInstruction::MoveImmediate {
+    if word & 0xE000 == 0x2000 {
+        let operation = match (word >> 11) & 0x03 {
+            0 => ThumbImmediateOp::Move,
+            1 => ThumbImmediateOp::Compare,
+            2 => ThumbImmediateOp::Add,
+            _ => ThumbImmediateOp::Subtract,
+        };
+        return ThumbInstruction::AluImmediate {
+            operation,
             rd: ((word >> 8) & 0x07) as u8,
             immediate: (word & 0x00FF) as u8,
         };
@@ -92,7 +107,32 @@ mod tests {
         );
         assert_eq!(
             decode(0x2107),
-            ThumbInstruction::MoveImmediate {
+            ThumbInstruction::AluImmediate {
+                operation: ThumbImmediateOp::Move,
+                rd: 1,
+                immediate: 7,
+            }
+        );
+        assert_eq!(
+            decode(0x2907),
+            ThumbInstruction::AluImmediate {
+                operation: ThumbImmediateOp::Compare,
+                rd: 1,
+                immediate: 7,
+            }
+        );
+        assert_eq!(
+            decode(0x3107),
+            ThumbInstruction::AluImmediate {
+                operation: ThumbImmediateOp::Add,
+                rd: 1,
+                immediate: 7,
+            }
+        );
+        assert_eq!(
+            decode(0x3907),
+            ThumbInstruction::AluImmediate {
+                operation: ThumbImmediateOp::Subtract,
                 rd: 1,
                 immediate: 7,
             }
