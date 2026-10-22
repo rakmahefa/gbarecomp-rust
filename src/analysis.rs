@@ -16,24 +16,12 @@ pub struct InstructionRecord {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BlockExit {
     Sequential,
-    StaticBranch {
-        target: u32,
-    },
-    ExternalBranch {
-        target: u32,
-    },
-    Call {
-        target: u32,
-        return_address: u32,
-    },
-    ConditionalBranch {
-        target: u32,
-        fallthrough: u32,
-    },
+    StaticBranch { target: u32 },
+    ExternalBranch { target: u32 },
+    Call { target: u32, return_address: u32 },
+    ConditionalBranch { target: u32, fallthrough: u32 },
     IndirectBranch,
-    Unsupported {
-        raw: u32,
-    },
+    Unsupported { raw: u32 },
     OutsideRom,
     PreviouslyDecoded,
     InstructionLimit,
@@ -165,11 +153,7 @@ pub fn analyze_rom(rom: &RomImage, max_instructions: usize) -> AnalysisReport {
                             exit = BlockExit::IndirectBranch;
                             break;
                         }
-                        ArmOperation::SingleDataTransfer {
-                            load: true,
-                            rd: 15,
-                            ..
-                        } => {
+                        ArmOperation::SingleDataTransfer { load: true, rd: 15, .. } => {
                             exit = BlockExit::IndirectBranch;
                             break;
                         }
@@ -230,7 +214,9 @@ pub fn analyze_rom(rom: &RomImage, max_instructions: usize) -> AnalysisReport {
                                     fallthrough: next,
                                 };
                             } else {
-                                exit = BlockExit::Unsupported { raw: u32::from(raw) };
+                                exit = BlockExit::Unsupported {
+                                    raw: u32::from(raw),
+                                };
                             }
                             break;
                         }
@@ -306,9 +292,12 @@ mod tests {
         let rom = synthetic_rom(&[(0, 0xEA00_0001), (12, 0xE1A0_0000)]);
         let report = analyze_rom(&rom, 16);
         assert!(!report.blocks.is_empty());
-        assert_eq!(report.blocks[0].exit, BlockExit::StaticBranch {
-            target: GBA_ROM_BASE + 12
-        });
+        assert_eq!(
+            report.blocks[0].exit,
+            BlockExit::StaticBranch {
+                target: GBA_ROM_BASE + 12
+            }
+        );
     }
 
     #[test]
