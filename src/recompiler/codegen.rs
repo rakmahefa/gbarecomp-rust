@@ -465,6 +465,8 @@ fn generated_mov_and_branch_execute_natively() {
         let binary_path = temp.join(stem);
         std::fs::write(&source_path, source).expect("write generated source");
         let compile = Command::new("rustc")
+            .arg("--crate-name")
+            .arg("gbarecomp_generated_smoke")
             .arg("--edition=2024")
             .arg("--test")
             .arg(&source_path)
