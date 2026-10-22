@@ -70,7 +70,7 @@ pub struct IrInstruction {
     pub operation: IrOperation,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlockTerminator {
     Fallthrough {
         target: u32,
@@ -114,7 +114,12 @@ pub struct AnalysisReport {
 
 impl AnalysisReport {
     pub fn is_complete_for_codegen(&self) -> bool {
-        self.diagnostics.is_empty() && !self.reached_instruction_limit && !self.blocks.is_empty()
+        self.diagnostics.is_empty()
+            && !self.reached_instruction_limit
+            && !self.blocks.is_empty()
+            && self.blocks.iter().all(|block| {
+                !matches!(block.terminator, BlockTerminator::Unsupported | BlockTerminator::Indirect)
+            })
     }
 
     pub fn first_error(&self) -> Option<RecompileError> {
