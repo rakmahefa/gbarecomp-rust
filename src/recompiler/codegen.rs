@@ -281,7 +281,10 @@ fn emit_terminator(output: &mut String, block: &BasicBlock) -> Result<(), Recomp
             fallthrough,
         } => {
             let thumb = instruction_set == super::InstructionSet::Thumb;
-            let _ = writeln!(output, "    if condition_passed(state.cpsr, {condition}) {{");
+            let _ = writeln!(
+                output,
+                "    if condition_passed(state.cpsr, {condition}) {{"
+            );
             if link {
                 let _ = writeln!(output, "        state.regs[14] = 0x{return_address:08X};");
             }
@@ -318,7 +321,10 @@ fn emit_terminator(output: &mut String, block: &BasicBlock) -> Result<(), Recomp
             instruction_set,
         } => {
             let thumb = instruction_set == super::InstructionSet::Thumb;
-            let _ = writeln!(output, "    if condition_passed(state.cpsr, {condition}) {{");
+            let _ = writeln!(
+                output,
+                "    if condition_passed(state.cpsr, {condition}) {{"
+            );
             let _ = writeln!(output, "        state.regs[15] = 0x{target:08X};");
             let _ = writeln!(
                 output,
