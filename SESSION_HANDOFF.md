@@ -1,8 +1,8 @@
 # Session handoff
 
-Dernière mise à jour : 2026-10-22 (revue des workflows)
-Groupe de travail : Phase 0 — bootstrap Linux/CI/artefacts
-Branche de préparation : phase-0/bootstrap-linux-workflows
+Dernière mise à jour : 2026-10-22 (audit de référence et premier crate Rust)
+Groupe de travail : Phase 1 — bootstrap ARM/Thumb et analyse ROM
+Branche de travail : ref-audit-rust-bootstrap
 
 ## But du projet
 
@@ -28,11 +28,21 @@ Créer une recompilation statique GBA en Rust, avec Bevy comme runtime hôte. Li
 
 ## Limites / éléments à vérifier ensuite
 
-- Aucun code Rust ou runtime Bevy n'a encore été ajouté : le build doit donc signaler proprement l'absence de crate et ne produit pas encore d'artefact.
+- Le premier crate Rust est ajouté : parsing d'en-tête ROM, état CPU/flags, bus mémoire provisoire, décodeurs ARM/Thumb, exploration conservative du flot de contrôle et CLI inspect/analyze. Aucune émission de code natif n'est encore implémentée.
 - La configuration des bibliothèques système Linux nécessaires à Bevy dépendra des versions et fonctionnalités réellement retenues.
 - Le format du paquet de release devra évoluer si le runtime exige d'autres ressources, bibliothèques dynamiques ou données.
 - Le workflow REA prépare un bundle statique (binaire + métadonnées + rapports ELF) ; l'analyse pilotée par agent et moteur natif s'effectue séparément dans l'environnement configuré.
 - Il faut décider la licence propre au projet et la politique de purge de l'historique contenant l'ancien blob ROM.
+- Le prochain jalon prioritaire est un IR typé + émission native Rust pour un sous-ensemble testé, puis les sémantiques ARM7TDMI manquantes et les effets MMIO ; ne pas appeler la tranche actuelle un recompilateur complet.
+
+## Travail de portage commencé le 2026-10-22
+
+- Ajout de reference-audit.md avec cartographie des modules de référence, priorités de portage, exclusions liées aux ROM/BIOS/données générées et constat de licence PolyForm Noncommercial 1.0.0.
+- Ajout de Cargo.toml et Cargo.lock sans dépendances tierces pour que le noyau initial reste compilable/reproductible indépendamment de l'installation Bevy.
+- Ajout des modules rom, cpu, memory, arm, thumb et analysis, avec tests synthétiques et inconnus signalés comme non pris en charge.
+- Ajout des commandes `gbarecomp inspect` et `gbarecomp analyze`.
+- Le bus n'est pas cycle-accurate, les registres MMIO sont encore des octets sans side-effects et les décodeurs ne couvrent qu'une partie des encodages. Pas d'IR/exécution générée native ni de runtime Bevy à ce stade.
+- Les vérifications Cargo ne sont pas exécutées dans l'environnement de travail faute de toolchain Rust locale ; ouvrir une PR pour déclencher la CI GitHub et résoudre les erreurs réelles avant intégration.
 
 ## Revue de configuration après le premier commit
 
