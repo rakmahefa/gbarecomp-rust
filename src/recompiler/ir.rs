@@ -118,17 +118,19 @@ impl AnalysisReport {
             && !self.reached_instruction_limit
             && !self.blocks.is_empty()
             && self.blocks.iter().all(|block| {
-                !matches!(block.terminator, BlockTerminator::Unsupported | BlockTerminator::Indirect)
+                !matches!(
+                    block.terminator,
+                    BlockTerminator::Unsupported | BlockTerminator::Indirect
+                )
             })
     }
 
     pub fn first_error(&self) -> Option<RecompileError> {
         self.diagnostics.first().cloned().or_else(|| {
-            self.reached_instruction_limit.then_some(
-                RecompileError::InstructionLimitReached {
+            self.reached_instruction_limit
+                .then_some(RecompileError::InstructionLimitReached {
                     limit: self.instruction_limit,
-                },
-            )
+                })
         })
     }
 }
