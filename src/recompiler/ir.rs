@@ -79,6 +79,17 @@ pub enum IrOperation {
         rd: u8,
         immediate: u8,
     },
+    ArmSingleDataTransferImmediate {
+        condition: u8,
+        load: bool,
+        byte: bool,
+        pre_index: bool,
+        add_offset: bool,
+        write_back: bool,
+        rn: u8,
+        rd: u8,
+        offset: u16,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
