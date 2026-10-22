@@ -153,7 +153,9 @@ pub fn analyze_rom(rom: &RomImage, max_instructions: usize) -> AnalysisReport {
                             exit = BlockExit::IndirectBranch;
                             break;
                         }
-                        ArmOperation::SingleDataTransfer { load: true, rd: 15, .. } => {
+                        ArmOperation::SingleDataTransfer {
+                            load: true, rd: 15, ..
+                        } => {
                             exit = BlockExit::IndirectBranch;
                             break;
                         }
