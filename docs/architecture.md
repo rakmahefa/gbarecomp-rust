@@ -18,6 +18,8 @@ L'émetteur est volontairement limité : NOP ARM exact, opérations ARM data-pro
 
 Le sous-ensemble natif prend en charge RSB et CMN dans la classe ARM data-processing immédiate; pour Thumb, le décodeur, l'IR et l'émetteur couvrent MOVS, CMP, ADDS et SUBS immédiats. CMN/CMP préservent le registre testé et produisent les flags attendus; RSB calcule Operand2 - Rn. La CI compile et exécute une fixture synthétique de code généré, y compris un cas de PC ARM visible (+8). Cette couverture partielle ne démontre pas la compatibilité d'un jeu complet.
 
+**Défaut connu à traiter avant d'étendre ARM :** dans `src/recompiler/arm.rs`, le garde `condition == 0x0F` intervient après les motifs BX/SWI. La reprise de PR #5 doit déplacer ce garde avant ces motifs et ajouter des tests de non-régression; PR #5 est fermée sans fusion, donc son correctif n'est pas présent dans `main`.
+
 ## Couches proposées
 
 1. **En-tête et identification de cartouche** — le parseur lit l'en-tête fixe GBA de 0xC0 octets, expose le mot d'instruction ARM de branchement aux offsets 0..4 (pas la destination déjà résolue) et les champs de titre/code/maker/version, puis calcule le complement checksum. L'objet `GbaRom` conserve les octets et mappe les trois fenêtres Game Pak 0x08/0x0A/0x0C vers des offsets ; l'identité de la fenêtre wait-state reste disponible. Un checksum incohérent est actuellement signalé comme métadonnée diagnostique ; les politiques de rejet relèveront d'une étape de validation ultérieure. Le hash de l'image, l'analyse des fonctions et les régions non-ROM de la cartographie complète restent à implémenter. Voir [la carte mémoire GBA](https://gbadev.net/gbadoc/memory.html).
