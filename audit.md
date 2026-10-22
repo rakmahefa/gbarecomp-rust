@@ -18,7 +18,7 @@ Si sa redistribution publique n'est pas autorisée, une purge d'historique coord
 
 **Sévérité : élevée pour la couverture fonctionnelle ; attendue à ce stade.**
 
-L'implémentation actuelle conserve ces fonctions d'en-tête et de cartouche, et ajoute `recompiler::arm`, `recompiler::thumb`, `recompiler::analysis`, `recompiler::ir` et `recompiler::codegen`. Le passeur statique suit le branchement d'entrée, certaines opérations ARM data-processing avec immédiat, MOVS immédiat Thumb et des branches directes/conditionnelles. Il émet du Rust pour les blocs uniquement si aucun diagnostic n'est présent. Aucun bus/MMIO à effets, aucune PPU/audio, aucune IRQ/DMA, aucun ensemble de cibles indirectes, et aucun jeu complet relié à Bevy n'est encore implémenté ; la compilation du code généré sur fixture synthétique ne prouve pas la compatibilité d'un titre.
+L'implémentation actuelle conserve ces fonctions d'en-tête et de cartouche, et ajoute `recompiler::arm`, `recompiler::thumb`, `recompiler::analysis`, `recompiler::ir` et `recompiler::codegen`. Le passeur statique suit le branchement d'entrée, certaines opérations ARM data-processing avec immédiat, MOVS/CMP/ADDS/SUBS immédiats Thumb et des branches directes/conditionnelles. Il émet du Rust pour les blocs uniquement si aucun diagnostic n'est présent. Aucun bus/MMIO à effets, aucune PPU/audio, aucune IRQ/DMA, aucun ensemble de cibles indirectes, et aucun jeu complet relié à Bevy n'est encore implémenté ; la compilation du code généré sur fixture synthétique ne prouve pas la compatibilité d'un titre.
 
 ### A-03 — Licence de la référence C++ à vérifier avant tout portage de code
 
@@ -72,7 +72,7 @@ Le parseur de header ne décode ni n'exécute le ROM. L'analyse et la générati
 
 **Sévérité : élevée tant que la couverture et la fidélité du modèle matériel ne sont pas démontrées. État : implémentation ajoutée ; CI du commit final à confirmer.**
 
-Le nouveau décodeur reconnaît un ensemble réduit : branchements ARM B/BL, quelques data-processing à immédiat et NOP ARM exact ; Thumb B, branches conditionnelles, MOVS immédiat ; autres encodages retournent `Unsupported`. La découverte démarre à 0x08000000, calcule les cibles des branches immédiates, suit les continuations statiquement connues, applique un budget et rapporte les cibles hors ROM, les branches indirectes et chevauchements d'entrées de blocs.
+Le nouveau décodeur reconnaît un ensemble réduit : branchements ARM B/BL, quelques data-processing à immédiat et NOP ARM exact ; Thumb B, branches conditionnelles, MOVS/CMP/ADDS/SUBS immédiats ; autres encodages retournent `Unsupported`. La découverte démarre à 0x08000000, calcule les cibles des branches immédiates, suit les continuations statiquement connues, applique un budget et rapporte les cibles hors ROM, les branches indirectes et chevauchements d'entrées de blocs.
 
 Le générateur refuse une analyse contenant un diagnostic et émet des fonctions Rust spécialisées avec un état registres/CPSR réduit. La fixture de test compile et exécute ce source comme un binaire de test. **Ce n'est pas l'ABI CPU/matériel final** : mémoire/MMIO, les opérations ARM/Thumb non implémentées, les transitions BX/BLX, exceptions/SWI, le traitement exhaustif de code/données, le retour d'appels intégré au runtime et les événements matériels restent hors portée.
 
@@ -103,3 +103,12 @@ L'abstraction `GbaRom` associe les plages CPU documentées 0x08000000-0x09FFFFFF
 Pour une image dont la taille est une puissance de deux, le mapping utilise un masque de taille pour représenter l'alias des bits d'adresse hauts. Pour les images de taille non puissance de deux, les offsets au-delà des octets fournis deviennent une erreur explicite plutôt qu'un miroir deviné. Cette règle conservatrice devra être comparée à une ROM commerciale autorisée et à un oracle matériel avant toute affirmation de compatibilité.
 
 Référence de la carte mémoire : [gbadev — GBA memory map](https://gbadev.net/gbadoc/memory.html). Aucun code de cette référence n'est copié.
+
+
+### A-12 — Extension des opérations arithmétiques immédiates ARM/Thumb
+
+**État : code ajouté ; CI finale à vérifier sur le SHA de livraison.**
+
+La tranche codegen ajoute RSB et CMN au sous-ensemble ARM data-processing immédiat, et étend Thumb du seul MOVS immédiat à MOVS/CMP/ADDS/SUBS. Le source généré calcule les flags propres à chaque opération : RSB calcule Operand2 - Rn et les flags dans cet ordre; CMN actualise les flags comme une addition sans écrire le registre destination; CMP Thumb ne modifie pas le registre comparé; ADDS/SUBS écrivent le registre et actualisent N/Z/C/V.
+
+Un test du code généré compile puis exécute maintenant le source sur des données synthétiques, y compris un accès au PC ARM visible (+8) et des opérations immédiates Thumb. Ce ne sont pas des tests différentiels GBA. Les décalages registre, ADC/SBC/RSC, chargements/stockages, BL Thumb, BX/interworking et le bus matériel restent exclus; l'inconnu bloque toujours la génération.

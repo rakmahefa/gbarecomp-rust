@@ -1,7 +1,7 @@
 # Audit de référence — portage Rust de GBARecomp
 
 - Date : 2026-10-22
-- Projet cible : [rakmahefa/gbarecomp-rust](https://github.com/rakmahefa/gbarecomp-rust), branche de travail `phase-1/rust-bevy-static-only`
+- Projet cible : [rakmahefa/gbarecomp-rust](https://github.com/rakmahefa/gbarecomp-rust), branche de base `phase-1/rust-bevy-static-only`, livraison `reference-audit-static-port`
 - Référence inspectée : [mstan/gbarecomp](https://github.com/mstan/gbarecomp), branche `main`, commit `9266573123fb950dfdee2d19040a2daf5e63e39d`
 - Périmètre : inventaire fonctionnel du code source, contrat de licence, recommandations de portage et ordre d’implémentation. Ce document ne constitue pas un avis juridique.
 
