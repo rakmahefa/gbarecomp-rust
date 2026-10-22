@@ -21,9 +21,9 @@ Cette tranche sait abaisser les NOP exacts, un sous-ensemble ARM data-processing
 
 ## Développement Linux
 
-Voir [le guide de développement](docs/development.md), [l'architecture](docs/architecture.md), [l'audit de référence](reference-audit.md), [les décisions](docs/decisions/ADR-0001-static-rust-recompilation.md) et [les workflows](docs/workflows.md). Bevy est épinglé à `0.20.0`, et `rust-toolchain.toml` fixe Rust à `1.98.1`.
+Voir [le guide de développement](docs/development.md), [l'architecture](docs/architecture.md), [l'audit de référence](reference-audit.md), [les décisions](docs/decisions/ADR-0001-static-rust-recompilation.md), [les workflows](docs/workflows.md) et la [procédure d'accès à la ROM privée](docs/private-rom-workflow.md). Bevy est épinglé à `0.20.0`, et `rust-toolchain.toml` fixe Rust à `1.98.1`.
 
-La ROM de développement doit être fournie localement et rester ignorée par Git. Une ROM, un BIOS, une sauvegarde ou des données dérivées ne doivent jamais être inclus dans les artefacts ou releases.
+Pour le développement local, la ROM de test reste locale et ignorée par Git. La ROM Emerald du dépôt privé `rakmahefa/roms` peut aussi être inspectée via le workflow manuel **Private ROM audit (manual)**, après configuration du secret SSH en lecture seule. Voir [la procédure d'accès privé](docs/private-rom-workflow.md). Ce workflow ne prouve pas la compatibilité complète et ne publie ni ROM, ni désassemblage détaillé, ni code généré. Les releases et artefacts de distribution restent indépendants de la ROM.
 
 ## Workflows
 
@@ -32,7 +32,8 @@ La ROM de développement doit être fournie localement et rester ignorée par Gi
 | CI (Linux) | PR vers `main`, push sur `main`, lancement manuel | Hygiène, formatage Rust, Clippy et tests |
 | Build (Linux) | Après la CI verte d'un push sur `main` | Une compilation release, paquet de distribution + entrée REA |
 | Release (manual) | Déclenchement manuel | Validation tag/build, publication de l'artefact existant sans recompiler |
-| REA analysis bundle (manual) | Déclenchement manuel | Vérification et préparation d'un bundle REA depuis l'artefact existant |
+| REA analysis bundle (manual) | Déclenchement manuel | Vérification et préparation d'un bundle REA du binaire hôte depuis l'artefact existant |
+| Private ROM audit (manual) | Déclenchement manuel depuis `main` | Inspection et analyse bornée de la ROM privée ; résumé agrégé seulement, aucun artefact ROM-dérivé détaillé |
 
 ## Maintenance de la documentation
 
