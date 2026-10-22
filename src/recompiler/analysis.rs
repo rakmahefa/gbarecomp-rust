@@ -10,6 +10,7 @@ use crate::rom::GbaRom;
 
 use super::ir::{
     AnalysisReport, BasicBlock, BlockTerminator, DataProcessingOpcode, IrInstruction, IrOperation,
+    ThumbImmediateOpcode,
 };
 use super::{InstructionSet, RecompileError};
 use super::{arm, thumb};
@@ -206,12 +207,26 @@ pub fn analyze(rom: &GbaRom, options: AnalysisOptions) -> AnalysisReport {
                     instruction_count += 1;
 
                     match instruction {
-                        thumb::ThumbInstruction::MoveImmediate { rd, immediate } => {
+                        thumb::ThumbInstruction::AluImmediate {
+                            operation,
+                            rd,
+                            immediate,
+                        } => {
+                            let operation = match operation {
+                                thumb::ThumbImmediateOp::Move => ThumbImmediateOpcode::Move,
+                                thumb::ThumbImmediateOp::Compare => ThumbImmediateOpcode::Compare,
+                                thumb::ThumbImmediateOp::Add => ThumbImmediateOpcode::Add,
+                                thumb::ThumbImmediateOp::Subtract => ThumbImmediateOpcode::Subtract,
+                            };
                             instructions.push(IrInstruction {
                                 address: pc,
                                 raw: u32::from(raw16),
                                 instruction_set,
-                                operation: IrOperation::ThumbMoveImmediate { rd, immediate },
+                                operation: IrOperation::ThumbAluImmediate {
+                                    operation,
+                                    rd,
+                                    immediate,
+                                },
                             });
                             pc = pc.wrapping_add(2);
                         }
