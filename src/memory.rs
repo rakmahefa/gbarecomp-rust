@@ -70,10 +70,7 @@ impl Bus {
     pub fn read8(&self, address: u32) -> Result<u8, BusError> {
         let (region, offset) = self.locate(address)?;
         let value = match region {
-            Region::Bios => self
-                .bios
-                .as_ref()
-                .ok_or(BusError::BiosUnavailable)?[offset],
+            Region::Bios => self.bios.as_ref().ok_or(BusError::BiosUnavailable)?[offset],
             Region::Ewram => self.ewram[offset],
             Region::Iwram => self.iwram[offset],
             Region::Io => self.io[offset],
@@ -190,17 +187,10 @@ impl Bus {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BusError {
-    UnmappedAddress {
-        address: u32,
-    },
-    ReadOnly {
-        address: u32,
-    },
+    UnmappedAddress { address: u32 },
+    ReadOnly { address: u32 },
     BiosUnavailable,
-    InvalidBiosSize {
-        actual: usize,
-        expected: usize,
-    },
+    InvalidBiosSize { actual: usize, expected: usize },
 }
 
 impl fmt::Display for BusError {
