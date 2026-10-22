@@ -1,0 +1,14 @@
+[package]
+name = "gbarecomp-rust"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Experimental static recompilation tooling for Game Boy Advance ROMs"
+
+[lib]
+name = "gbarecomp"
+path = "src/lib.rs"
+
+[[bin]]
+name = "gbarecomp"
+path = "src/main.rs"
