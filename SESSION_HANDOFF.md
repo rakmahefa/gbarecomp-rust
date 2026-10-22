@@ -6,6 +6,27 @@ Branche de reprise : `main`
 Merge commit de PR #4 : `fe9e1df5b74ccb686723adeea495419249e08d2f`
 Dernier SHA de documentation observé avant cette mise à jour : `73d66371f1aba688c486bedfa94bf04c0425067c`
 
+
+
+## Mise à jour de session — accès à la ROM privée (2026-10-22)
+
+Une branche de préparation, `feature/private-rom-actions`, contient un nouveau workflow manuel et les mises à jour documentaires. Cette branche **n'est pas encore fusionnée dans main**.
+
+- `rakmahefa/gbarecomp-rust` est public ; la connexion a les droits admin sur ce dépôt.
+- `rakmahefa/roms` est privé et contient un fichier ROM Emerald de 16 MiB. La connexion peut lire le dépôt, mais cet accès ne se transmet pas automatiquement au `GITHUB_TOKEN` d'un workflow GitHub Actions.
+- Le workflow ajouté est `.github/workflows/private-rom-audit.yml`. Il checkout le dépôt privé via une deploy key dédiée, construit `gbarecomp-recomp`, exécute `inspect` et `analyze` avec un budget réglable, et n'affiche que des statistiques agrégées. Il ne crée pas de build jouable et ne téléverse aucun artefact détaillé.
+- Action manuelle toujours requise : ajouter la clé publique comme deploy key en lecture seule dans `roms`, puis créer l'environnement `roms-audit` avec restriction de branche `main` et le secret `ROMS_DEPLOY_KEY` contenant la clé privée dans `gbarecomp-rust`. Suivre [docs/private-rom-workflow.md](docs/private-rom-workflow.md). Ne pas envoyer la clé privée dans la conversation.
+- Une fois cette configuration enregistrée, fusionner la branche/PR de préparation, lancer le workflow sur `main` et confirmer le résultat réel. Le dernier commit/état de la branche de préparation doit être vérifié dans GitHub avant la fusion.
+- Les workflows CI, Build, Release et REA actuels restent indépendants de la ROM. Ne jamais publier ROM, désassemblage détaillé, code généré depuis la ROM ou rapports détaillés dans ce dépôt public.
+
+### Prochaine séquence recommandée
+
+1. Terminer le setup manuel de la deploy key et du secret d'environnement.
+2. Revoir et fusionner la PR du workflow d'accès privé, puis lancer **Private ROM audit (manual)** depuis `main`.
+3. Vérifier les résultats d'analyse ; les diagnostics sont attendus puisque la couverture ARM/Thumb est très limitée.
+4. Reprendre le défaut de décodage ARM condition `0xF` décrit plus haut dans une nouvelle branche depuis le `main` courant ; la PR #5 reste fermée sans fusion.
+5. Après les premiers résultats réels, actualiser le présent handoff et l'état des validations. Ne pas déclarer de compilation complète d'Emerald tant que l'exécution complète n'a pas été implémentée et testée.
+
 ## Consignes immédiates pour la prochaine session
 
 1. **Commencer sur `main`** et lire ce fichier avant toute modification. Ne pas reprendre directement `phase-1/rust-bevy-static-only` ni la branche de livraison `reference-audit-static-port` comme base de travail; elles ont servi aux PR précédentes et sont désormais historiques.
