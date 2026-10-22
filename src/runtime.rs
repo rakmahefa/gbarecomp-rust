@@ -27,10 +27,7 @@ pub fn build_app() -> App {
 fn setup_host_scene(mut commands: Commands) {
     commands.spawn(Camera2d);
     commands.spawn((
-        Sprite::from_color(
-            Color::srgb(0.02, 0.025, 0.04),
-            Vec2::new(720.0, 480.0),
-        ),
+        Sprite::from_color(Color::srgb(0.02, 0.025, 0.04), Vec2::new(720.0, 480.0)),
         Transform::from_xyz(0.0, 0.0, 0.0),
     ));
 }

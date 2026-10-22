@@ -34,7 +34,8 @@ Le projet analyse du code GBA ARM7TDMI (ARM/Thumb) et **génère du code source 
 ## Validation et limites
 
 - Le run CI `39744719658` a échoué car le filtre refusait `rom/README.md`.
-- Le run push `39744961191` s'est terminé immédiatement en échec avec nom de workflow `.github/workflows/ci.yml` et sans jobs : la version de workflow sur la branche était syntaxiquement corrompue. Le contenu de `.github/workflows/ci.yml` a été réécrit proprement. Le prochain run PR doit confirmer son parsing avant qu'on puisse valider Rust.
+- Le run push `39744961191` s'est terminé immédiatement en échec avec nom de workflow `.github/workflows/ci.yml` et sans jobs : la version de workflow sur la branche était syntaxiquement corrompue. Le contenu de `.github/workflows/ci.yml` a été réécrit proprement.
+- Le run PR `39745275263` a chargé le workflow, passé le filtre ROM, installé les dépendances Linux et Rust, puis échoué sur `cargo fmt --check` uniquement pour deux diffs de formatage dans `src/recompiler/mod.rs` et `src/runtime.rs`. Ces deux corrections sont dans le commit courant ; Clippy et les tests n'ont pas encore été atteints.
 - Aucun build local n'a été exécuté dans l'environnement de préparation ; il ne disposait pas de Cargo/rustc.
 - Le lockfile Bevy a été basé sur une résolution Cargo existante de Bevy 0.20 et adapté au package du projet ; **il faut le laisser à la CI avec `--locked`**. Toute erreur du resolver doit être corrigée via Cargo puis le nouveau lockfile commité.
 - Le runtime ne fait qu'ouvrir une fenêtre Bevy et afficher une forme de remplacement ; pas de chargement ROM, décodeur ARM/Thumb, IR, émetteur Rust ou modèle matériel encore.

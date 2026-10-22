@@ -110,9 +110,15 @@ mod tests {
 
     #[test]
     fn runtime_generated_code_is_rejected_during_recompilation() {
-        let error = RecompileError::RuntimeGeneratedCode { address: 0x0300_1000 };
+        let error = RecompileError::RuntimeGeneratedCode {
+            address: 0x0300_1000,
+        };
 
         assert!(error.to_string().contains("0x03001000"));
-        assert!(error.to_string().contains("cannot be statically recompiled"));
+        assert!(
+            error
+                .to_string()
+                .contains("cannot be statically recompiled")
+        );
     }
 }
