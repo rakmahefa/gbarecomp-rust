@@ -11,11 +11,11 @@
 | --- | --- | --- | --- |
 | `.gitignore` | Exclut `target/`, sorties locales, analyses REA et ROM ; permet de garder uniquement `rom/README.md`. | En place | Un nouvel outil ou une sortie générée crée des fichiers locaux. |
 | `Cargo.toml` | Manifeste du crate hôte. Bevy exactement `=0.20.0`, feature set initial 2D. | Squelette compilable attendu par CI | Dépendances/features ou structure du workspace changent. |
-| `Cargo.lock` | Verrouille le graphe de dépendances, utilisé avec `--locked`. | Remplacé par une résolution Bevy 0.20 feature `2d` ; la CI doit confirmer sa cohérence exacte. | Cargo.toml ou les dépendances changent. Générer avec Cargo, jamais l'éditer manuellement. |
+| `Cargo.lock` | Verrouille le graphe de dépendances, utilisé avec `--locked`. | La CI a accepté le verrou et compilait Bevy ; le contrôle de compilation du crate a échoué sur `src/runtime.rs`, pas sur la résolution du lockfile. | Cargo.toml ou les dépendances changent. Générer avec Cargo, jamais l'éditer manuellement. |
 | `rust-toolchain.toml` | Épingle Rust `1.98.1` et les composants rustfmt/Clippy. | En place | MSRV, Bevy ou images de runners changent. |
 | `src/main.rs` | Point d'entrée : démarre le runtime Bevy. | Squelette | Le lancement ou l'initialisation globale change. |
 | `src/lib.rs` | Expose les modules de runtime et de recompilation. | Squelette | Les couches du crate ou les API publiques changent. |
-| `src/runtime.rs` | Construction de l'application Bevy et scène visuelle provisoire. | Placeholder ; ne charge pas de ROM | Fenêtre, présentation, périphériques ou initialisation du matériel changent. |
+| `src/runtime.rs` | Construction de l'application Bevy et scène visuelle provisoire. | Placeholder ; un retour `&mut App` incorrect a été repéré par la CI et corrigé ; résultat de la CI suivante à confirmer. Ne charge aucune ROM. | Fenêtre, présentation, périphériques ou initialisation du matériel changent. |
 | `src/recompiler/mod.rs` | Types de diagnostic du contrat de recompilation statique, sans fallback runtime. | Types/tests initiaux ; analyseur absent | Instructions, flux de contrôle, IR ou stratégies de rejet sont ajoutés. |
 | `README.md` | Objectif, état réel, références, contrainte Rust statique et procédures. | Revu dans cette PR | Chaque groupe de travail modifie le statut, l'architecture, les commandes ou les workflows. |
 | `SESSION_HANDOFF.md` | Passation chronologique, commits, validations et prochaines actions. | Revu dans chaque commit de clôture | Toujours : mettre à jour avant le commit qui clôt un groupe. |

@@ -8,7 +8,7 @@ L'objectif est d'analyser le code machine ARM7TDMI (ARM et Thumb) d'une ROM GBA 
 
 ## État du projet
 
-Le scaffold Rust/Bevy est initialisé. Il ouvre une fenêtre hôte et contient le contrat de diagnostic du futur analyseur statique. **L'analyse ROM, la découverte ARM/Thumb, l'IR, l'émission des fonctions Rust et le modèle matériel ne sont pas encore implémentés.** La fenêtre actuelle est un placeholder et ne représente pas une ROM exécutée.
+Le scaffold Rust/Bevy est initialisé et configure une fenêtre hôte de remplacement. La compilation et l'exécution interactive de cette fenêtre doivent encore être confirmées par la CI et un essai local. **L'analyse ROM, la découverte ARM/Thumb, l'IR, l'émission des fonctions Rust et le modèle matériel ne sont pas encore implémentés.** La fenêtre est un placeholder et ne représente pas une ROM exécutée.
 
 ## Références
 

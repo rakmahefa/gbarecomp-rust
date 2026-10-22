@@ -56,6 +56,12 @@ L'inventaire fichier par fichier se trouve dans [docs/repository-audit.md](docs/
 
 Le run CI `39745465091` a passé le garde-fou ROM et `cargo fmt --check`, puis Clippy a échoué avec le message indiquant que `Cargo.lock` devait être actualisé malgré `--locked`. Le lockfile initial avait été adapté depuis un projet Bevy plus large dont le graphe actif ne correspondait pas exactement à notre manifeste 2D minimal. Il est remplacé par un lockfile Cargo généré pour un profil Bevy `0.20.0` avec la feature `2d` seule, et le package racine est renommé pour ce projet. La nouvelle CI doit confirmer que Cargo accepte ce lockfile avec `--locked` ; ne pas lever le verrou pour faire passer la CI.
 
+### A-08 — Construction de l'application Bevy avec type de retour incorrect
+
+**Sévérité : moyenne — correctif soumis, CI en attente.**
+
+Le run `39745818857` a passé le garde-fou ROM, `cargo fmt` et la résolution du lockfile, puis la compilation a détecté que la chaîne `App::new().add_plugins(...).insert_resource(...).add_systems(...)` retournait `&mut App` plutôt que `App` comme annoncé par `build_app()`. Le builder est réécrit pour configurer une variable locale puis retourner explicitement `App`. Le prochain run doit confirmer la compilation, Clippy et les tests.
+
 ## Références de workflows
 
 - CI automatique sur PR et push Linux ; le workflow échoue si une ROM/BIOS/sauvegarde est suivie dans Git.

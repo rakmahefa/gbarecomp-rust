@@ -11,17 +11,20 @@ use bevy::prelude::*;
 /// Keeping construction separate makes app configuration testable without
 /// opening a real window.
 pub fn build_app() -> App {
-    App::new()
-        .add_plugins(DefaultPlugins.set(WindowPlugin {
-            primary_window: Some(Window {
-                title: "GBARecomp Rust".into(),
-                resolution: (960, 640).into(),
-                ..default()
-            }),
+    let mut app = App::new();
+
+    app.add_plugins(DefaultPlugins.set(WindowPlugin {
+        primary_window: Some(Window {
+            title: "GBARecomp Rust".into(),
+            resolution: (960, 640).into(),
             ..default()
-        }))
-        .insert_resource(ClearColor(Color::srgb(0.035, 0.045, 0.065)))
-        .add_systems(Startup, setup_host_scene)
+        }),
+        ..default()
+    }));
+    app.insert_resource(ClearColor(Color::srgb(0.035, 0.045, 0.065)));
+    app.add_systems(Startup, setup_host_scene);
+
+    app
 }
 
 fn setup_host_scene(mut commands: Commands) {
