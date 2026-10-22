@@ -14,7 +14,7 @@ pub mod ir;
 pub mod thumb;
 
 /// Instruction encoding state for an ARM7TDMI address.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum InstructionSet {
     /// 32-bit ARM instruction encoding.
     Arm,
