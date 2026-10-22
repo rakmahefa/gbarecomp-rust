@@ -153,7 +153,10 @@ impl fmt::Display for RomError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::TooSmall { actual, minimum } => {
-                write!(f, "ROM is too small: {actual} bytes, at least {minimum} required")
+                write!(
+                    f,
+                    "ROM is too small: {actual} bytes, at least {minimum} required"
+                )
             }
             Self::Io { path, source } => write!(f, "cannot read ROM {path}: {source}"),
         }
