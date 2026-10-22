@@ -8,6 +8,7 @@ use std::fmt::Write as _;
 use super::RecompileError;
 use super::ir::{
     AnalysisReport, BasicBlock, BlockTerminator, DataProcessingOpcode, IrInstruction, IrOperation,
+    ThumbImmediateOpcode,
 };
 
 /// Emit a standalone Rust module containing statically specialized block functions.
@@ -189,12 +190,36 @@ fn emit_instruction(
         IrOperation::Nop => {
             let _ = writeln!(output, "    // NOP at 0x{:08X}", instruction.address);
         }
-        IrOperation::ThumbMoveImmediate { rd, immediate } => {
-            let _ = writeln!(
-                output,
-                "    state.regs[{rd}] = {immediate};\n    update_nz(state, state.regs[{rd}]);"
-            );
-        }
+        IrOperation::ThumbAluImmediate {
+            operation,
+            rd,
+            immediate,
+        } => match operation {
+            ThumbImmediateOpcode::Move => {
+                let _ = writeln!(
+                    output,
+                    "    state.regs[{rd}] = {immediate};\n    update_nz(state, state.regs[{rd}]);"
+                );
+            }
+            ThumbImmediateOpcode::Compare => {
+                let _ = writeln!(
+                    output,
+                    "    let lhs = state.regs[{rd}];\n    let rhs = {immediate}_u32;\n    let result = lhs.wrapping_sub(rhs);\n    update_sub_flags(state, lhs, rhs, result);"
+                );
+            }
+            ThumbImmediateOpcode::Add => {
+                let _ = writeln!(
+                    output,
+                    "    let lhs = state.regs[{rd}];\n    let rhs = {immediate}_u32;\n    let result = lhs.wrapping_add(rhs);\n    state.regs[{rd}] = result;\n    update_add_flags(state, lhs, rhs, result);"
+                );
+            }
+            ThumbImmediateOpcode::Subtract => {
+                let _ = writeln!(
+                    output,
+                    "    let lhs = state.regs[{rd}];\n    let rhs = {immediate}_u32;\n    let result = lhs.wrapping_sub(rhs);\n    state.regs[{rd}] = result;\n    update_sub_flags(state, lhs, rhs, result);"
+                );
+            }
+        },
         IrOperation::ArmDataProcessingImmediate {
             condition,
             opcode,
@@ -223,7 +248,10 @@ fn emit_instruction(
                 DataProcessingOpcode::Subtract | DataProcessingOpcode::Compare => {
                     "lhs.wrapping_sub(rhs)"
                 }
-                DataProcessingOpcode::Add => "lhs.wrapping_add(rhs)",
+                DataProcessingOpcode::ReverseSubtract => "rhs.wrapping_sub(lhs)",
+                DataProcessingOpcode::Add | DataProcessingOpcode::CompareNegative => {
+                    "lhs.wrapping_add(rhs)"
+                }
                 DataProcessingOpcode::Or => "lhs | rhs",
                 DataProcessingOpcode::Move => "rhs",
                 DataProcessingOpcode::BitClear => "lhs & !rhs",
@@ -237,13 +265,17 @@ fn emit_instruction(
 
             if *set_flags || opcode.updates_flags_by_definition() {
                 match opcode {
-                    DataProcessingOpcode::Add => {
+                    DataProcessingOpcode::Add | DataProcessingOpcode::CompareNegative => {
                         let _ =
                             writeln!(output, "        update_add_flags(state, lhs, rhs, result);");
                     }
                     DataProcessingOpcode::Subtract | DataProcessingOpcode::Compare => {
                         let _ =
                             writeln!(output, "        update_sub_flags(state, lhs, rhs, result);");
+                    }
+                    DataProcessingOpcode::ReverseSubtract => {
+                        let _ =
+                            writeln!(output, "        update_sub_flags(state, rhs, lhs, result);");
                     }
                     _ => {
                         let carry = match shifter_carry {
@@ -453,9 +485,46 @@ mod tests {
                     }],
                     terminator: BlockTerminator::Exit,
                 },
+                BasicBlock {
+                    start: 0x0800_0010,
+                    instruction_set: InstructionSet::Thumb,
+                    instructions: vec![
+                        IrInstruction {
+                            address: 0x0800_0010,
+                            raw: 0x2205,
+                            instruction_set: InstructionSet::Thumb,
+                            operation: IrOperation::ThumbAluImmediate {
+                                operation: ThumbImmediateOpcode::Move,
+                                rd: 2,
+                                immediate: 5,
+                            },
+                        },
+                        IrInstruction {
+                            address: 0x0800_0012,
+                            raw: 0x3203,
+                            instruction_set: InstructionSet::Thumb,
+                            operation: IrOperation::ThumbAluImmediate {
+                                operation: ThumbImmediateOpcode::Add,
+                                rd: 2,
+                                immediate: 3,
+                            },
+                        },
+                        IrInstruction {
+                            address: 0x0800_0014,
+                            raw: 0x2A08,
+                            instruction_set: InstructionSet::Thumb,
+                            operation: IrOperation::ThumbAluImmediate {
+                                operation: ThumbImmediateOpcode::Compare,
+                                rd: 2,
+                                immediate: 8,
+                            },
+                        },
+                    ],
+                    terminator: BlockTerminator::Exit,
+                },
             ],
             diagnostics: vec![],
-            instruction_count: 3,
+            instruction_count: 6,
             instruction_limit: 100,
             reached_instruction_limit: false,
         };
@@ -478,6 +547,14 @@ fn generated_mov_and_branch_execute_natively() {
         execute_block(0x0800_0008, false, &mut state),
         Ok(Flow::Exit)
     );
+    assert_eq!(
+        execute_block(0x0800_0010, true, &mut state),
+        Ok(Flow::Exit)
+    );
+    assert_eq!(state.regs[2], 8);
+    assert_ne!(state.cpsr & Z, 0);
+    assert_ne!(state.cpsr & C, 0);
+    assert_ne!(state.cpsr & T, 0);
 }
 "#,
         );
