@@ -209,7 +209,7 @@ mod tests {
     fn reads_little_endian_guest_words() {
         let rom = RomImage::from_bytes(test_rom()).expect("valid synthetic ROM");
         assert_eq!(rom.read_guest_u32(GBA_ROM_BASE), Some(0xEA00_0000));
-        assert_eq!(rom.read_guest_u16(GBA_ROM_BASE + 1), Some(0x00EA));
+        assert_eq!(rom.read_guest_u16(GBA_ROM_BASE + 1), Some(0));
         assert_eq!(rom.read_guest_u32(GBA_ROM_BASE + 4), None);
     }
 }
