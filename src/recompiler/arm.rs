@@ -75,12 +75,12 @@ pub fn decode(word: u32) -> ArmInstruction {
         }
 
         let immediate = word & 0xFF;
-        let rotation = ((word >> 8) & 0x0F) as u32 * 2;
+        let rotation = ((word >> 8) & 0x0F) * 2;
         let value = immediate.rotate_right(rotation);
         return ArmInstruction::DataProcessingImmediate {
             condition,
             opcode,
-            set_flags: word & (1 << 20) != 0 || matches!(opcode, 8 | 9 | 10),
+            set_flags: word & (1 << 20) != 0 || matches!(opcode, 8..=10),
             rn: ((word >> 16) & 0x0F) as u8,
             rd: ((word >> 12) & 0x0F) as u8,
             value,
