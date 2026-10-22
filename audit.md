@@ -2,7 +2,7 @@
 
 ## Résumé
 
-La CI Linux a validé le scaffold Rust/Bevy, son formatage, Clippy et ses tests au run [39746990377](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746990377). Les premières briques de cartouche sont un parseur de l'en-tête fixe et une abstraction d'image qui mappe les fenêtres Game Pak vers des offsets. Ce n'est pas encore un recompilateur : la découverte de code, le décodeur ARM/Thumb, l'IR, l'émission Rust et le modèle matériel restent à implémenter.
+La CI antérieure a validé le scaffold Bevy et le parseur d'en-tête. Le groupe courant ajoute maintenant des décodeurs ARM/Thumb limités, une IR typée, une découverte conservatrice de branches statiques et un émetteur source Rust qui compile/exécute une fixture synthétique par rustc. Cette tranche doit encore passer fmt/Clippy/tests sur la CI du commit final. Elle n'est pas un recompilateur de jeu complet : le bus matériel, les instructions restantes, la découverte exhaustive des fonctions, les exceptions et le runtime d'un jeu recompilé restent à construire.
 
 ## Constatations et actions
 
@@ -18,7 +18,7 @@ Si sa redistribution publique n'est pas autorisée, une purge d'historique coord
 
 **Sévérité : élevée pour la couverture fonctionnelle ; attendue à ce stade.**
 
-Le parseur d'en-tête lit les 0xC0 premiers octets requis, expose le mot d'instruction ARM de branchement stocké aux offsets 0..4 (sans prétendre avoir résolu sa destination) et les champs de titre, game code, maker code, unité, device type et version ; il calcule aussi le complement checksum. `GbaRom` possède les octets, conserve les métadonnées d'en-tête et mappe les fenêtres CPU 0x08000000-0x09FFFFFF, 0x0A000000-0x0BFFFFFF et 0x0C000000-0x0DFFFFFF vers un offset du fichier. L'objet ne trouve pas les fonctions invitées et ne génère pas encore de code Rust. Il n'existe donc toujours pas de preuve de compatibilité avec un jeu GBA.
+L'implémentation actuelle conserve ces fonctions d'en-tête et de cartouche, et ajoute `recompiler::arm`, `recompiler::thumb`, `recompiler::analysis`, `recompiler::ir` et `recompiler::codegen`. Le passeur statique suit le branchement d'entrée, certaines opérations ARM data-processing avec immédiat, MOVS immédiat Thumb et des branches directes/conditionnelles. Il émet du Rust pour les blocs uniquement si aucun diagnostic n'est présent. Aucun bus/MMIO à effets, aucune PPU/audio, aucune IRQ/DMA, aucun ensemble de cibles indirectes, et aucun jeu complet relié à Bevy n'est encore implémenté ; la compilation du code généré sur fixture synthétique ne prouve pas la compatibilité d'un titre.
 
 ### A-03 — Licence de la référence C++ à vérifier avant tout portage de code
 
@@ -60,13 +60,26 @@ Le run `39745818857` a détecté que la chaîne de configuration Bevy retournait
 
 ### A-09 — Parseur de l'en-tête GBA : périmètre limité
 
-**État : en-tête et renommage validés par la CI ; mapping de fenêtres ajouté dans le commit courant, validation en attente.**
+**État : en-tête et renommage validés par la CI ; le parsing structurel ne valide pas la sémantique d'un jeu.**
 
 Le parseur vérifie qu'au moins 0xC0 octets sont disponibles, expose le mot d'instruction ARM de branchement stocké aux offsets 0..4 et les champs fixes, expose les octets de titre/code/maker sans les normaliser et signale le complement checksum calculé. Le checksum incohérent est une information diagnostique et ne fait pas échouer le parsing structurel. Les tests utilisent uniquement une fixture synthétique, jamais la ROM de développement.
 
 Le premier run CI du parseur (`39747920168`) a échoué uniquement sur `cargo fmt --check`, qui demandait de réordonner la liste `pub use` dans `src/rom/mod.rs`. Le correctif de formatage a été validé par [le run CI `39748310841`](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39748310841). Le renommage `entry_branch_opcode` a ensuite été validé au run [39749349856](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39749349856).
 
-Ce composant ne doit ni interpréter des instructions, ni exécuter du contenu ROM, ni déclencher une compilation de code invité. L'analyse et la génération de code restent des étapes statiques de build qui viendront plus tard.
+Le parseur de header ne décode ni n'exécute le ROM. L'analyse et la génération sont des étapes distinctes de build ajoutées dans la tranche courante ; leur couverture reste limitée et doit être examinée avec A-11.
+
+### A-11 — Découverte ARM/Thumb et source emitter : couverture initiale seulement
+
+**Sévérité : élevée tant que la couverture et la fidélité du modèle matériel ne sont pas démontrées. État : implémentation ajoutée ; CI du commit final à confirmer.**
+
+Le nouveau décodeur reconnaît un ensemble réduit : branchements ARM B/BL, quelques data-processing à immédiat et NOP ARM exact ; Thumb B, branches conditionnelles, MOVS immédiat ; autres encodages retournent `Unsupported`. La découverte démarre à 0x08000000, calcule les cibles des branches immédiates, suit les continuations statiquement connues, applique un budget et rapporte les cibles hors ROM, les branches indirectes et chevauchements d'entrées de blocs.
+
+Le générateur refuse une analyse contenant un diagnostic et émet des fonctions Rust spécialisées avec un état registres/CPSR réduit. La fixture de test compile et exécute ce source comme un binaire de test. **Ce n'est pas l'ABI CPU/matériel final** : mémoire/MMIO, les opérations ARM/Thumb non implémentées, les transitions BX/BLX, exceptions/SWI, le traitement exhaustif de code/données, le retour d'appels intégré au runtime et les événements matériels restent hors portée.
+
+Limites à surveiller avant extension :
+- les blocs de branches vers une adresse déjà décodée au milieu d'un bloc provoquent actuellement un diagnostic de chevauchement au lieu de scinder le bloc ;
+- les paires BL Thumb et cibles indirectes sont rejetées ;
+- une fonction de test qui passe n'établit pas une comparaison sémantique différentielle avec un émulateur oracle.
 
 ## Cadence de mise à jour de l'audit
 
