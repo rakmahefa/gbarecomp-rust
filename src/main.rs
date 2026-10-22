@@ -35,7 +35,11 @@ fn run() -> Result<(), Box<dyn Error>> {
                 return Err("unexpected argument for inspect".into());
             }
             println!("ROM: {path}");
-            println!("Size: {} bytes ({:.2} MiB)", rom.len(), rom.len() as f64 / 1_048_576.0);
+            println!(
+                "Size: {} bytes ({:.2} MiB)",
+                rom.len(),
+                rom.len() as f64 / 1_048_576.0
+            );
             println!("Title: {}", rom.header.title);
             println!("Game code: {}", rom.header.game_code);
             println!("Maker code: {}", rom.header.maker_code);
@@ -44,7 +48,11 @@ fn run() -> Result<(), Box<dyn Error>> {
                 "Header checksum: declared=0x{:02X}, computed=0x{:02X} ({})",
                 rom.header.declared_checksum,
                 rom.header.computed_checksum,
-                if rom.header.checksum_matches() { "ok" } else { "mismatch" }
+                if rom.header.checksum_matches() {
+                    "ok"
+                } else {
+                    "mismatch"
+                }
             );
         }
         "analyze" => {
