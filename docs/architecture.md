@@ -6,6 +6,12 @@ Recompiler le code machine ARM7TDMI (ARM et Thumb) d'une version de ROM GBA vers
 
 La référence mstan/gbarecomp est utile pour comprendre les frontières entre analyse, traduction et runtime matériel. Son implémentation C++ et sa licence propre restent distinctes de ce projet Rust.
 
+## État de la première tranche
+
+Déjà présents dans le crate : parsing de l'en-tête, lecture d'adresses du ROM, primitives CPU/flags/conditions, carte mémoire provisoire, décodeurs de familles ARM/Thumb et parcours de flot de contrôle limité à la ROM. Les commandes sont `gbarecomp inspect <rom.gba>` et `gbarecomp analyze <rom.gba> [max-instructions]`.
+
+Ce niveau reste exploratoire : pas d'émission de code Rust natif, de table de dispatch exécutable, de sémantique d'interpréteur complète ni de MMIO cycle-accurate. Les sorties inconnues sont signalées ; le rapport d'analyse ne prouve pas encore que les octets identifiés sont tous du code.
+
 ## Couches proposées
 
 1. **Entrée et identification** — lecture locale de la ROM, taille, hash, révision et cartographie des régions. Les données propriétaires ne sont pas intégrées à Git ou aux artefacts.
