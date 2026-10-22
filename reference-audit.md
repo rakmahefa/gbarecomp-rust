@@ -1,8 +1,8 @@
 # Audit de référence GBARecomp — port Rust
 
-Date : 2026-10-22  
-Dépôt cible : [rakmahefa/gbarecomp-rust](https://github.com/rakmahefa/gbarecomp-rust)  
-Référence principale : [mstan/gbarecomp](https://github.com/mstan/gbarecomp), branche `main`, arbre observé au commit `9266573123fb950dfdee2d19040a2daf5e63e39d`.  
+Date : 2026-10-22
+Dépôt cible : [rakmahefa/gbarecomp-rust](https://github.com/rakmahefa/gbarecomp-rust)
+Référence principale : [mstan/gbarecomp](https://github.com/mstan/gbarecomp), branche `main`, arbre observé au commit `9266573123fb950dfdee2d19040a2daf5e63e39d`.
 But : transformer la référence en plan d'implémentation concret pour une recompilation statique GBA en Rust, Linux x86_64 d'abord, avec Bevy limité à la couche hôte.
 
 ## 1. Conclusion exécutive
