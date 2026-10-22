@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
-use crate::rom::{GbaRom, RomImageError, GBA_HEADER_LEN};
+use crate::rom::GbaRom;
 
 use super::ir::{
     AnalysisReport, BasicBlock, BlockTerminator, DataProcessingOpcode, IrInstruction, IrOperation,
@@ -74,7 +74,7 @@ pub fn analyze(rom: &GbaRom, options: AnalysisOptions) -> AnalysisReport {
                 break;
             }
 
-            let decoded = match instruction_set {
+            match instruction_set {
                 InstructionSet::Arm => {
                     let Some(raw) = read_u32(rom, pc) else {
                         diagnostics.push(unresolved_edge(pc, pc));
@@ -283,11 +283,7 @@ pub fn analyze(rom: &GbaRom, options: AnalysisOptions) -> AnalysisReport {
                     }
                     continue;
                 }
-            };
-            // Every match arm either advances PC or terminates the block.
-            // This expression is intentionally unreachable and makes accidental
-            // fallthrough from the state-specific decoding branches conspicuous.
-            let _ = decoded;
+            }
         }
 
         blocks.push(BasicBlock {
@@ -302,6 +298,7 @@ pub fn analyze(rom: &GbaRom, options: AnalysisOptions) -> AnalysisReport {
         blocks,
         diagnostics,
         instruction_count,
+        instruction_limit: options.max_instructions,
         reached_instruction_limit,
     }
 }
