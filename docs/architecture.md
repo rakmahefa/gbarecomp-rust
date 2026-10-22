@@ -2,33 +2,35 @@
 
 ## Objectif
 
-Recompiler le code machine ARM7TDMI (ARM et Thumb) d'une version de ROM GBA vers un programme natif Rust, puis l'exécuter contre un modèle explicite du matériel GBA. Ce projet ne doit pas devenir une réécriture du jeu en logique de haut niveau.
+Analyser le code machine ARM7TDMI (ARM et Thumb) d'une ROM GBA et générer du **code source Rust** qui conserve les effets observables du programme invité. Cargo/rustc compilent ce code en fonctions natives avant l'exécution. Bevy est le runtime hôte pour la fenêtre, le rendu, l'input et l'audio hôte ; il ne réécrit pas le jeu et ne remplace pas le modèle matériel GBA.
 
-La référence mstan/gbarecomp est utile pour comprendre les frontières entre analyse, traduction et runtime matériel. Son implémentation C++ et sa licence propre restent distinctes de ce projet Rust.
+**Aucun interpréteur invité ou JIT n'est autorisé.** Le binaire distribué ne décode ni ne compile du code invité à l'exécution. Voir [ADR-0001](decisions/ADR-0001-static-rust-recompilation.md).
+
+La référence [mstan/gbarecomp](https://github.com/mstan/gbarecomp) sert à étudier les fonctions, les frontières CPU/matériel et les cas de fidélité. Son implémentation C++ et sa licence PolyForm Noncommercial restent distinctes. Ses chemins de repli à l'exécution ne font pas partie de l'architecture cible de ce projet.
 
 ## Couches proposées
 
-1. **Entrée et identification** — lecture locale de la ROM, taille, hash, révision et cartographie des régions. Les données propriétaires ne sont pas intégrées à Git ou aux artefacts.
-2. **Analyse statique ARM/Thumb** — découverte des fonctions et des blocs, état ARM/Thumb, branches et appels, références littérales, données vs code et cibles indirectes connues. Les hypothèses doivent être traçables.
-3. **IR et recompilateur** — représentation intermédiaire documentée, sémantique des flags, conditions, shifter, accès mémoire et ABI d'appel ; génération native avec tests différentiels.
-4. **Bus et modèle matériel GBA** — carte mémoire, E/S, IRQ, DMA, timers, PPU, audio, clavier et sauvegardes. Les effets doivent suivre les contrats matériels identifiés, pas simplement rendre un écran.
-5. **Runtime hôte Bevy** — boucle application, fenêtre, rendu, gestion d'entrées, audio hôte et intégration plateforme. Bevy orchestre la présentation ; il ne remplace pas la sémantique du programme invité ou des registres GBA.
-6. **Validation** — tests unitaires de l'IR, jeux de tests ARM/Thumb, traces reproductibles, comparaison avec un émulateur de référence et tests d'intégration utilisant la ROM uniquement en local.
+1. **Identification de la cartouche** — chargement local, taille, hash, révision et cartographie des régions. La ROM et les données propriétaires restent hors de Git et des artefacts.
+2. **Analyse statique ARM/Thumb** — découverte du code et des blocs, état ARM/Thumb, branches, appels, tables littérales, données vs code et cibles indirectes résolues. Les hypothèses doivent être traçables.
+3. **IR et validation sémantique** — représentation intermédiaire indépendante de Bevy ; sémantique des flags, conditions, shifter, effets mémoire et contrat d'appel. Tests sur cas isolés avant émission native.
+4. **Émission Rust** — génération lisible et reproductible des fonctions Rust, avec sources générées et manifestes ignorés ou conservés localement selon la politique de build. La sortie générée est compilée par Cargo/rustc pendant la construction.
+5. **Bus et modèle matériel GBA** — carte mémoire, registres E/S, IRQ, DMA, timers, PPU, audio, entrée et sauvegardes. Les effets suivent les contrats matériels documentés.
+6. **Runtime hôte Bevy** — ordonnance l'application et présente l'image/audio produits par le modèle matériel. La surface de présentation reste distincte de l'état matériel canonique.
+7. **Validation différentielle** — jeux de tests ARM/Thumb, traces reproductibles et comparaison des effets observables avec un oracle documenté.
 
-## Règles de conception
+## Contrat en cas d'échec statique
 
-- Préserver une frontière claire entre code invité recompilé et effets matériels.
-- Aucune instruction, cible ou effet inconnu ne doit être transformé silencieusement en opération vide.
-- Documenter le niveau de confiance des découvertes statiques et les chemins de repli (interpréteur ou dispatch dynamique) nécessaires pour les cas non résolus.
-- Distinguer l'état matériel canonique de la surface de présentation Bevy, notamment si des améliorations visuelles sont explorées plus tard.
-- Toute optimisation doit être validée par des tests qui comparent des effets observables, pas seulement par une compilation réussie.
-- Garder l'analyse ROM et la génération de code dérivé dans des sorties locales ignorées. Ne jamais ajouter ces sorties aux artefacts de release par un glob du dépôt.
+- Les instructions sans abaissement correct, cibles de branche non résolues, appels indirects à ensemble de cibles incomplet, chevauchements code/données ambigus et régions exécutables générées/modifiées au runtime entraînent des erreurs de recompilation contextualisées par adresse.
+- Aucun de ces cas n'est remplacé par un no-op, un interpréteur, un compilateur JIT ou du décodage runtime.
+- Un titre qui dépend d'un chemin impossible à résoudre statiquement reste explicitement non pris en charge jusqu'à l'implémentation d'une solution statique correcte.
+- Chaque optimisation doit être couverte par des tests sémantiques ; une compilation réussie n'est pas une preuve de fidélité.
 
-## Décisions ouvertes
+## Décisions restant à prendre
 
-- Format et niveau de détail de l'IR.
-- Contrat ABI des fonctions recompilées et gestion des appels indirects.
-- Stratégie pour le code en RAM / auto-modifiant.
-- Granularité des événements matériel et déterminisme de l'ordonnanceur.
-- Compatibilité de version de Rust, Bevy et bibliothèques Linux.
-- Choix de licence du code nouveau et politique des dépendances.
+- Format et invariants de l'IR.
+- Représentation des flags ARM7TDMI et des transferts mémoire.
+- Contrat d'appel des fonctions générées et convention d'interworking ARM/Thumb.
+- Résolution des tables de dispatch indirectes et des données imbriquées dans les régions de code.
+- Stratégie statique pour les cas de code dépendant d'état mutable ; les cas non résolus doivent être rejetés.
+- Modélisation déterministe des événements matériels et cycle d'exécution.
+- Politique de conservation des sources Rust générées et des symboles d'analyse.

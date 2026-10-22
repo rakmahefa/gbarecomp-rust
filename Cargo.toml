@@ -1,0 +1,10 @@
+[package]
+name = "gbarecomp-rust"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.97.1"
+publish = false
+description = "Static GBA recompilation to native Rust with a Bevy host runtime"
+
+[dependencies]
+bevy = { version = "=0.20.0", default-features = false, features = ["2d"] }

@@ -16,6 +16,10 @@ jobs:
       group: linux-build-main
       cancel-in-progress: true
     runs-on: ubuntu-latest
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_RELEASE_DEBUG: "1"
     steps:
       - name: Checkout the exact CI commit
         uses: actions/checkout@v4
@@ -23,39 +27,30 @@ jobs:
           ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
-      - name: Detect Rust crate
-        id: project
-        shell: bash
+      - name: Install Bevy Linux build dependencies
         run: |
-          if [[ -f Cargo.toml ]]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            {
-              echo "## Build skipped"
-              echo "No Cargo.toml exists at this commit. No binary or artifact was produced; add the Rust crate before using Release or REA workflows."
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y \
+            build-essential pkg-config \
+            libx11-dev libasound2-dev libudev-dev \
+            libxkbcommon-x11-0 libxkbcommon-dev \
+            libwayland-dev libxcursor-dev libxrandr-dev libxi-dev
 
-      - name: Install stable Rust
-        if: steps.project.outputs.present == 'true'
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install pinned Rust toolchain
+        uses: dtolnay/rust-toolchain@1.98.1
 
       - name: Cache Rust dependencies and build outputs
-        if: steps.project.outputs.present == 'true'
         uses: Swatinem/rust-cache@v2
 
       - name: Compile and package
-        if: steps.project.outputs.present == 'true'
         env:
-          CARGO_PROFILE_RELEASE_DEBUG: "1"
           BUILD_COMMIT: ${{ github.event.workflow_run.head_sha }}
         shell: bash
         run: |
           set -euo pipefail
           cargo metadata --locked --format-version 1 --no-deps > "$RUNNER_TEMP/cargo-metadata.json"
           mapfile -t bins < <(jq -r '.packages[].targets[] | select(.kind | index("bin")) | .name' "$RUNNER_TEMP/cargo-metadata.json" | sort -u)
-          if [[ "${#bins[@]}" -eq 0 ]]; then
+          if [[ ${#bins[@]} -eq 0 ]]; then
             echo "::error::No binary target found in Cargo metadata."
             exit 1
           fi
@@ -74,34 +69,31 @@ jobs:
             fi
             install -m 0755 "$binary" "$release_root/bin/$name"
             install -m 0755 "$binary" "$analysis_root/bin/$name"
-            # Keep the public distribution lean, while preserving symbols in the REA copy.
             strip --strip-unneeded "$release_root/bin/$name"
             file "$binary" >> "$analysis_root/reports/file.txt"
             readelf -h -l -S -s "$binary" >> "$analysis_root/reports/readelf.txt"
             nm -C --defined-only "$binary" >> "$analysis_root/reports/symbols.txt" || true
           done
 
-          if [[ -f README.md ]]; then install -m 0644 README.md "$release_root/README.md"; fi
-          if [[ -f LICENSE ]]; then install -m 0644 LICENSE "$release_root/LICENSE"; fi
-          if [[ -d assets ]]; then cp -a assets "$release_root/assets"; cp -a assets "$analysis_root/assets"; fi
-          if [[ -f README.md ]]; then install -m 0644 README.md "$analysis_root/PROJECT-README.md"; fi
-
+          install -m 0644 README.md "$release_root/README.md"
+          install -m 0644 README.md "$analysis_root/PROJECT-README.md"
+          install -m 0644 docs/decisions/ADR-0001-static-rust-recompilation.md "$release_root/STATIC-RECOMPILATION-CONTRACT.md"
           rustc --version > "$analysis_root/reports/rustc-version.txt"
           git log -1 --format='%H%n%ct%n%s' "$BUILD_COMMIT" > "$analysis_root/reports/source-commit.txt"
 
-          jq -n --arg commit "$BUILD_COMMIT" --arg target "x86_64-unknown-linux-gnu" --arg profile "release-with-debug-symbols" --argjson binaries "$(printf '%s\n' "${bins[@]}" | jq -R . | jq -s .)" '{commit:$commit,target:$target,profile:$profile,binaries:$binaries,rom_included:false}' > "$release_root/build-info.json"
+          jq -n --arg commit "$BUILD_COMMIT" --arg target "x86_64-unknown-linux-gnu" --arg profile "release-with-debug-symbols" --argjson binaries "$(printf '%s\n' "${bins[@]}" | jq -R . | jq -s .)" '{commit:$commit,target:$target,profile:$profile,binaries:$binaries,output_language:"Rust",runtime_translation:"none",interpreter:false,jit:false,rom_included:false}' > "$release_root/build-info.json"
           cp "$release_root/build-info.json" "$analysis_root/manifest.json"
           cp "$release_root/build-info.json" "$analysis_root/build-info.json"
           cat > "$analysis_root/REA_TASK.md" <<'EOF'
           # REA analysis task
 
           Target: native Linux x86_64 executable(s) produced by the selected build.
-          Do not execute the binary merely to inspect it. Begin with the reports and static analysis.
+          The project architecture emits Rust source and has no guest interpreter or JIT. This is the host scaffold; the static recompiler itself is not implemented yet.
 
-          1. Identify executable entry points, symbol coverage, dynamic dependencies, and build/runtime initialization paths.
+          1. Identify executable entry points, symbol coverage, dynamic dependencies, and Bevy/runtime initialization paths.
           2. Distinguish facts from hypotheses and cite symbols, addresses, or disassembly evidence.
-          3. When source code is available, map findings to files without assuming that symbols alone prove semantic behavior.
-          4. This artifact does not contain the GBA test ROM, BIOS, saves, or guest ROM-derived code.
+          3. Do not infer that a static recompilation pipeline exists merely because the host scaffold builds.
+          4. This artifact does not contain the GBA test ROM, BIOS, saves, or ROM-derived generated code.
           EOF
 
           source_epoch="$(git show -s --format=%ct "$BUILD_COMMIT")"
@@ -121,12 +113,11 @@ jobs:
             echo "- Commit: $BUILD_COMMIT"
             echo "- Distribution artifact: gbarecomp-linux-x86_64"
             echo "- REA input artifact: rea-analysis-input"
-            echo "- Build profile retains debug symbols to avoid a second compilation for REA."
+            echo "- Rust source is compiled before runtime; no interpreter or JIT is included."
             echo "- ROM/save data is not included."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload distribution artifact
-        if: steps.project.outputs.present == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: gbarecomp-linux-x86_64
@@ -135,7 +126,6 @@ jobs:
           retention-days: 14
 
       - name: Upload REA input artifact
-        if: steps.project.outputs.present == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: rea-analysis-input

@@ -1,47 +1,37 @@
 # Session handoff
 
-Dernière mise à jour : 2026-10-22 (revue des workflows)
-Groupe de travail : Phase 0 — bootstrap Linux/CI/artefacts
-Branche de préparation : phase-0/bootstrap-linux-workflows
+Dernière mise à jour : 2026-10-22
+Groupe de travail : Phase 1 — scaffold Rust/Bevy et invariants de recompilation
+Branche de préparation : `phase-1/rust-bevy-static-only`
 
 ## But du projet
 
-Créer une recompilation statique GBA en Rust, avec Bevy comme runtime hôte. Linux x86_64 uniquement pour la première phase. La référence technique principale est [mstan/gbarecomp](https://github.com/mstan/gbarecomp) ; [morluto/rea](https://github.com/morluto/rea) servira à l'analyse inverse assistée.
+Créer un recompilateur statique GBA en Rust qui **génère du code Rust**, compilé avant lancement, avec Bevy comme runtime hôte. Linux x86_64 uniquement dans un premier temps. Aucune interprétation du code invité et aucun JIT ne sont autorisés.
 
-## État observé à l'entrée
+## État au début du groupe
 
-- Dépôt rakmahefa/gbarecomp-rust, branche par défaut main.
-- Le dépôt n'avait qu'un README vide et le répertoire rom/ ; aucun Cargo.toml, Cargo.lock, source Rust ou workflow n'était présent.
-- rom/testrom.gba faisait 16 MiB et était suivi par Git dans le dépôt public. Cette branche retire le fichier de l'arbre courant, ajoute des règles d'ignorance locales et garde les instructions dans rom/README.md.
-- Le blob demeure accessible dans l'historique antérieur tant que l'historique n'est pas réécrit.
-- mstan/gbarecomp est principalement un framework C++/CMake sous PolyForm Noncommercial 1.0.0. S'en servir comme référence technique ne donne pas automatiquement les droits de réutiliser son code.
-- morluto/rea publie son dépôt sous MIT. Le package source annonce Node.js ^22.19.0 || ^24.11.0 || >=26.0.0 ; le workflow épingle REA à 6.7.0 pour la reproductibilité initiale.
+- La PR #1 de Phase 0 a été fusionnée sur `main` (commit `fed900f090e15779e02faa42abea0bf04568f73a`).
+- La ROM GBA a été retirée de l'arbre courant lors de la Phase 0 ; l'ancien blob subsiste dans l'historique Git et doit être purgé si sa redistribution n'est pas autorisée.
+- Le dépôt avait désormais la documentation et les quatre workflows GitHub Actions, mais pas encore de `Cargo.toml` ni de code Rust.
+- La référence GBARecomp amont est principalement C++/CMake et sous PolyForm Noncommercial 1.0.0 ; REA est sous MIT.
 
 ## Travail inclus dans ce groupe
 
-- README de projet et documentation Phase 0.
-- audit.md, architecture cible, développement local, références et stratégie de workflows.
-- CI Linux avec contrôles de dépôt toujours actifs et vérifications Rust activées dès que Cargo.toml existe.
-- Build Linux séquencé après la CI réussie sur main, avec un artefact de distribution et un bundle d'entrée REA construits depuis le même binaire.
-- Release et bundle REA manuels, fondés sur les artefacts produits par le build ; pas de compilation supplémentaire dans ces workflows.
-- .gitignore pour les sorties de build et les ROM locales.
+- Création du crate package et library `gbarecomp-rust`, du toolchain pin et du premier runtime fenêtre Bevy.
+- Pin Bevy `=0.20.0`; Rust `1.98.1`; cible Linux x86_64.
+- Création de l'ADR-0001 : génération source Rust statique, aucun interpréteur/JIT ; les cas non résolus échouent avec un diagnostic contextualisé.
+- Types d'erreur de recompilation initiaux et tests pour les cibles indirectes non résolues et le code invité généré au runtime.
+- Mise à jour du README, de l'audit, de l'architecture, des références, du guide Linux et de la stratégie CI/build.
+- CI et build rendus stricts : plus de succès apparent causé par l'absence de manifeste Cargo.
 
-## Limites / éléments à vérifier ensuite
+## Validation et limites
 
-- Aucun code Rust ou runtime Bevy n'a encore été ajouté : le build doit donc signaler proprement l'absence de crate et ne produit pas encore d'artefact.
-- La configuration des bibliothèques système Linux nécessaires à Bevy dépendra des versions et fonctionnalités réellement retenues.
-- Le format du paquet de release devra évoluer si le runtime exige d'autres ressources, bibliothèques dynamiques ou données.
-- Le workflow REA prépare un bundle statique (binaire + métadonnées + rapports ELF) ; l'analyse pilotée par agent et moteur natif s'effectue séparément dans l'environnement configuré.
-- Il faut décider la licence propre au projet et la politique de purge de l'historique contenant l'ancien blob ROM.
+- Aucun `rustc` ni `cargo` n'était installé dans l'environnement de préparation utilisé ; le build local n'a donc pas été exécuté.
+- La CI GitHub doit valider le lockfile, les API de Bevy 0.20, le formatage, Clippy et les tests.
+- La fenêtre Bevy est un placeholder : le chargeur de ROM, l'analyse ARM/Thumb, l'IR, l'émission Rust et le modèle matériel ne sont pas implémentés.
+- Le choix de licence du code nouveau reste à décider.
+- La ROM n'est pas intégrée au binaire, aux artefacts ou au bundle REA.
 
-## Revue de configuration après le premier commit
+## Prochaine tâche
 
-- Le workflow REA installe explicitement Node.js 24.11.0, compatible avec les engines déclarés par la version REA épinglée.
-- La vérification d'existence d'une release reçoit GH_TOKEN ; elle ne doit pas dépendre d'une lecture GitHub non authentifiée.
-- Le verrou de concurrence du build est limité au job éligible : un événement PR ignoré ne peut pas annuler un build main.
-- Le paquet public utilise une copie strip du binaire ; le bundle REA conserve les symboles, à partir de la même compilation.
-- Cette correction est dans un commit séparé et ce handoff est mis à jour avec lui.
-
-## Règle pour les prochaines sessions
-
-**Mettre à jour ce fichier dans chaque commit qui clôt un groupe de travail.** Ajouter la date, les changements, les validations réellement exécutées, les artefacts/commits concernés, les problèmes connus et la prochaine action. Ne jamais marquer une vérification comme réussie si elle n'a pas été exécutée.
+Exécuter et corriger le premier build CI. Ensuite commencer une première tranche statique testable : parseur d'en-tête GBA, cartographie ROM, puis quelques instructions ARM/Thumb et génération d'un module Rust natif. Chaque groupe de commits qui clôt une tâche doit ajouter ses changements, tests exécutés, SHA et risques ici.
