@@ -377,8 +377,8 @@ mod tests {
     #[test]
     fn follows_entry_branch_to_a_known_instruction() {
         let rom = synthetic_rom(&[
-            (0, 0xEA00_002E), // 0x08000000 -> 0x080000C0
-            (GBA_HEADER_LEN, 0xE3A0_0001), // MOV r0, #1
+            (0, 0xEA00_002E),                  // 0x08000000 -> 0x080000C0
+            (GBA_HEADER_LEN, 0xE3A0_0001),     // MOV r0, #1
             (GBA_HEADER_LEN + 4, 0xEAFF_FFFD), // B back to block start
         ]);
         let report = analyze(
@@ -417,11 +417,18 @@ mod tests {
     #[test]
     fn refuses_to_claim_complete_discovery_when_budget_is_exhausted() {
         let rom = synthetic_rom(&[(0, 0xEA00_002E), (GBA_HEADER_LEN, 0xE3A0_0001)]);
-        let report = analyze(&rom, AnalysisOptions { max_instructions: 1 });
+        let report = analyze(
+            &rom,
+            AnalysisOptions {
+                max_instructions: 1,
+            },
+        );
         assert!(report.reached_instruction_limit);
-        assert!(report.diagnostics.iter().any(|error| matches!(
-            error,
-            RecompileError::InstructionLimitReached { limit: 1 }
-        )));
+        assert!(
+            report
+                .diagnostics
+                .iter()
+                .any(|error| matches!(error, RecompileError::InstructionLimitReached { limit: 1 }))
+        );
     }
 }
