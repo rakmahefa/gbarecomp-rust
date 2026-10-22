@@ -7,6 +7,12 @@
 
 use std::{error::Error, fmt};
 
+pub mod analysis;
+pub mod arm;
+pub mod codegen;
+pub mod ir;
+pub mod thumb;
+
 /// Instruction encoding state for an ARM7TDMI address.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum InstructionSet {
@@ -54,6 +60,11 @@ pub enum RecompileError {
         /// Guest address of the ambiguous region.
         address: u32,
     },
+    /// The conservative discovery pass reached its configured instruction budget.
+    InstructionLimitReached {
+        /// Maximum number of instructions allowed during the pass.
+        limit: usize,
+    },
 }
 
 impl fmt::Display for RecompileError {
@@ -87,6 +98,10 @@ impl fmt::Display for RecompileError {
             Self::CodeDataOverlap { address } => write!(
                 f,
                 "code/data classification is ambiguous at 0x{address:08X}"
+            ),
+            Self::InstructionLimitReached { limit } => write!(
+                f,
+                "static discovery stopped after reaching the instruction limit ({limit})"
             ),
         }
     }
