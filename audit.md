@@ -123,3 +123,19 @@ Dans `src/recompiler/arm.rs`, `decode` vérifie actuellement les motifs BX et SW
 **Action de reprise :** dans une nouvelle branche créée depuis `main`, déplacer le rejet de `condition == 0x0F` immédiatement après l'identification exacte du NOP (ou avant tous les masques conditionnels concernés), puis ajouter des tests qui prouvent que les encodages avec condition `0xF` ne sont pas décodés comme BX/SWI, tout en gardant un SWI conditionnel valide reconnu. L'ancien correctif est visible dans la branche de PR #5, mais PR #5 est fermée sans fusion : vérifier chaque changement contre `main` et ne pas supposer qu'il a été intégré.
 
 Le calcul du PC ARM visible (`adresse instruction + 8`) est déjà présent dans le codegen fusionné. Le cas additionnel `SUB r0, pc, #8` proposé dans PR #5 n'est pas dans le test du codegen fusionné et devrait servir de test de non-régression.
+
+
+## Accès CI à la ROM privée — 2026-10-22
+
+Le dépôt `rakmahefa/roms` est privé et contient la ROM Pokémon Emerald de développement. `gbarecomp-rust` reste public ; son `GITHUB_TOKEN` n'accorde donc pas automatiquement l'accès au dépôt privé distinct. Un nouveau workflow manuel, `.github/workflows/private-rom-audit.yml`, a été préparé pour récupérer la ROM avec une clé SSH dédiée en lecture seule, stockée comme secret d'environnement `ROMS_DEPLOY_KEY` dans `roms-audit`.
+
+### Contrôles de sécurité et statut
+
+- **Configuration manuelle en attente :** ajouter le deploy key public dans Settings → Deploy keys du dépôt `roms`, sans autoriser l'écriture ; ajouter la clé privée comme secret d'environnement dans `gbarecomp-rust`.
+- L'environnement `roms-audit` doit autoriser uniquement `main`. Le workflow est manuel et les workflows publics CI/Build/Release/REA n'utilisent pas cette clé.
+- Le workflow attend exactement un fichier `.gba` à la racine de `roms`, exécute `inspect` et `analyze` avec un budget réglable (plafonné à 1 000 000 instructions), puis supprime le checkout et les rapports bruts du runner éphémère.
+- Les résumés et journaux d'un dépôt public ne sont pas privés. Seuls les compteurs agrégés sont écrits dans le résumé. Aucun artefact, release, code généré, dump ou rapport détaillé ROM-dérivé n'est téléversé.
+- Le workflow établit un chemin d'accès et vérifie l'analyse limitée actuelle ; il ne démontre pas qu'Emerald peut être recompilé ou exécuté. L'IR/codegen ne couvre qu'un sous-ensemble d'instructions.
+- Le cache Rust ne sauvegarde que les sorties Cargo ciblées et le cache de dépendances ; aucun fichier ROM ou rapport brut n'est écrit dans ces emplacements. Le checkout privé est placé hors du répertoire local `rom/` et n'est jamais inclus dans un paquet.
+
+Procédure et rotation de clé : [docs/private-rom-workflow.md](docs/private-rom-workflow.md). Les secrets et deploy keys ne peuvent pas être créés via la connexion GitHub utilisée durant cette session ; l'ajout dans l'interface GitHub et le premier run restent à confirmer.

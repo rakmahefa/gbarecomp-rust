@@ -23,3 +23,10 @@ Le workflow vérifie l'installation CLI de REA via le paquet épinglé rea-agent
 - Frontière entre le runtime hôte et le code de recompilation invité lorsqu'il existera.
 - Evidence : adresses, noms de symboles, extraits désassemblés et degré de certitude. Séparer les faits observés des hypothèses.
 - Ne jamais mettre la ROM, un BIOS ou les données extraites dans le bundle. En phase initiale, le bundle porte uniquement le binaire hôte et les métadonnées de build.
+
+
+## ROM privée vs analyse REA du binaire hôte
+
+Le workflow **Private ROM audit (manual)** est distinct du bundle REA décrit plus haut. Il utilise le dépôt privé pour inspecter l'en-tête et faire une analyse statique bornée, mais il ne lance pas d'agent REA et ne fournit aucun rapport ROM-dérivé détaillé comme artefact public.
+
+Le bundle REA existant reste consacré au binaire natif de l'hôte et à ses rapports ELF. Pour analyser en détail du code ou des structures dérivés de la ROM, ne pas téléverser ces sorties vers les artefacts du dépôt public. Utiliser un environnement privé, puis documenter les preuves techniques sans redistribuer la ROM.

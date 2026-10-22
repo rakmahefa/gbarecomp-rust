@@ -28,3 +28,14 @@
 ## Limite d'analyse
 
 Le bundle REA contient le binaire hôte avec symboles, les rapports ELF, les métadonnées et les consignes. Il ne contient ni ROM, ni BIOS, ni code Rust généré à partir d'une ROM. REA sert à explorer les binaires et les traces hors de l'exécution principale ; le runtime livré reste exclusivement statique, sans interpréteur ni JIT.
+
+
+## Audit de ROM privée (manuel)
+
+Le workflow **Private ROM audit (manual)** est séparé du build de distribution et du bundle REA standard. Il doit être lancé depuis `main`, utilise l'environnement GitHub `roms-audit` et récupère `rakmahefa/roms` avec le secret `ROMS_DEPLOY_KEY` (deploy key SSH en lecture seule). La configuration est décrite dans [private-rom-workflow.md](private-rom-workflow.md).
+
+Il compile la CLI `gbarecomp-recomp`, lance `inspect` et `analyze` sur l'unique fichier `.gba` à la racine du dépôt privé, avec un budget d'instructions limité. Il n'effectue pas de recompilation complète du jeu et n'essaie pas d'émettre du code généré.
+
+**Sorties et confidentialité :** le dépôt contenant les workflows est public. Le résumé ne montre que des compteurs agrégés ; la ROM, les sorties détaillées de l'analyse, le désassemblage et les éventuels codes générés ne sont pas téléversés en artefact ni en release. Les rapports bruts temporaires sont supprimés à la fin du job. Ne pas ajouter de future étape qui imprime ou téléverse les détails ROM-dérivés sans mettre ces sorties dans un environnement privé.
+
+Le secret est un secret d'environnement plutôt qu'un secret global du dépôt. L'environnement doit autoriser uniquement la branche `main`. Les workflows CI, Build, Release et REA existants ne reçoivent pas ce secret et restent indépendants de la ROM privée.
