@@ -5,10 +5,10 @@
 
 use std::fmt::Write as _;
 
+use super::RecompileError;
 use super::ir::{
     AnalysisReport, BasicBlock, BlockTerminator, DataProcessingOpcode, IrInstruction, IrOperation,
 };
-use super::RecompileError;
 
 /// Emit a standalone Rust module containing statically specialized block functions.
 ///
@@ -197,7 +197,10 @@ fn emit_instruction(
             value,
             shifter_carry,
         } => {
-            let _ = writeln!(output, "    if condition_passed(state.cpsr, {condition}) {{");
+            let _ = writeln!(
+                output,
+                "    if condition_passed(state.cpsr, {condition}) {{"
+            );
             let _ = writeln!(output, "        let lhs = state.regs[{rn}];");
             let _ = writeln!(output, "        let rhs = 0x{value:08X}_u32;");
             let expression = match opcode {
@@ -223,16 +226,12 @@ fn emit_instruction(
             if *set_flags || opcode.updates_flags_by_definition() {
                 match opcode {
                     DataProcessingOpcode::Add => {
-                        let _ = writeln!(
-                            output,
-                            "        update_add_flags(state, lhs, rhs, result);"
-                        );
+                        let _ =
+                            writeln!(output, "        update_add_flags(state, lhs, rhs, result);");
                     }
                     DataProcessingOpcode::Subtract | DataProcessingOpcode::Compare => {
-                        let _ = writeln!(
-                            output,
-                            "        update_sub_flags(state, lhs, rhs, result);"
-                        );
+                        let _ =
+                            writeln!(output, "        update_sub_flags(state, lhs, rhs, result);");
                     }
                     _ => {
                         let carry = match shifter_carry {
@@ -277,10 +276,7 @@ fn emit_terminator(output: &mut String, block: &BasicBlock) -> Result<(), Recomp
             let thumb = instruction_set == super::InstructionSet::Thumb;
             let _ = writeln!(output, "    if condition_passed(state.cpsr, {condition}) {{");
             if link {
-                let _ = writeln!(
-                    output,
-                    "        state.regs[14] = 0x{return_address:08X};"
-                );
+                let _ = writeln!(output, "        state.regs[14] = 0x{return_address:08X};");
             }
             let _ = writeln!(output, "        state.regs[15] = 0x{target:08X};");
             if link {
@@ -296,16 +292,15 @@ fn emit_terminator(output: &mut String, block: &BasicBlock) -> Result<(), Recomp
             }
             output.push_str("    } else {\n");
             if let Some(fallthrough) = fallthrough {
-                let _ = writeln!(
-                    output,
-                    "        state.regs[15] = 0x{fallthrough:08X};"
-                );
+                let _ = writeln!(output, "        state.regs[15] = 0x{fallthrough:08X};");
                 let _ = writeln!(
                     output,
                     "        Ok(Flow::Next {{ target: 0x{fallthrough:08X}, thumb: {thumb} }})"
                 );
             } else {
-                output.push_str("        Err(\"unconditional branch condition unexpectedly failed\")\n");
+                output.push_str(
+                    "        Err(\"unconditional branch condition unexpectedly failed\")\n",
+                );
             }
             output.push_str("    }\n");
         }
@@ -323,10 +318,7 @@ fn emit_terminator(output: &mut String, block: &BasicBlock) -> Result<(), Recomp
                 "        Ok(Flow::Branch {{ target: 0x{target:08X}, thumb: {thumb} }})"
             );
             output.push_str("    } else {\n");
-            let _ = writeln!(
-                output,
-                "        state.regs[15] = 0x{fallthrough:08X};"
-            );
+            let _ = writeln!(output, "        state.regs[15] = 0x{fallthrough:08X};");
             let _ = writeln!(
                 output,
                 "        Ok(Flow::Next {{ target: 0x{fallthrough:08X}, thumb: {thumb} }})"
@@ -337,7 +329,10 @@ fn emit_terminator(output: &mut String, block: &BasicBlock) -> Result<(), Recomp
         BlockTerminator::Unsupported => {
             return Err(RecompileError::UnsupportedInstruction {
                 address: block.start,
-                opcode: block.instructions.last().map_or(0, |instruction| instruction.raw),
+                opcode: block
+                    .instructions
+                    .last()
+                    .map_or(0, |instruction| instruction.raw),
                 instruction_set: block.instruction_set,
             });
         }
@@ -360,10 +355,10 @@ const fn state_suffix(state: super::InstructionSet) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::recompiler::InstructionSet;
     use crate::recompiler::ir::{
         AnalysisReport, BasicBlock, BlockTerminator, IrInstruction, IrOperation,
     };
-    use crate::recompiler::InstructionSet;
     use std::process::Command;
 
     #[test]
