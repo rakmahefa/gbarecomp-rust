@@ -30,7 +30,7 @@ Le code invité GBA ARM7TDMI est analysé à l'avance et les blocs pris en charg
 ## Validation CI connue
 
 - Le run [39753518405](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39753518405) au commit `7505b138a8500fac9c0289376e5887ba5f396881` a passé hygiène/filtre ROM, `cargo fmt --all -- --check`, Clippy strict et `cargo test --workspace --all-features --locked`, y compris le test qui compile et exécute le Rust généré.
-- L'extension RSB/CMN + MOVS/CMP/ADDS/SUBS et les mises à jour documentaires du commit courant requièrent un nouveau run CI; ne les déclarer validés qu'après succès du run associé au nouveau SHA.
+- Le run [39754684102](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39754684102) au commit `77e58405c09560a4e40a41cfc697797adb03e187` a passé le contrôle ROM, `cargo fmt --all -- --check`, Clippy strict et `cargo test --workspace --all-features --locked`, incluant le test d'exécution du source généré avec les opérations Thumb immédiates et le PC ARM (+8). Le commit documentaire suivant n'a pas changé le code Rust.
 - Aucun test différentiel mGBA/oracle n'a été exécuté. Aucun démarrage de jeu complet ni intégration du code émis à un runtime de jeu Bevy n'est démontré.
 - L'environnement local de préparation n'a pas de toolchain Rust; la compilation est vérifiée par GitHub Actions, pas annoncée comme exécutée localement.
 

@@ -107,7 +107,7 @@ Référence de la carte mémoire : [gbadev — GBA memory map](https://gbadev.ne
 
 ### A-12 — Extension des opérations arithmétiques immédiates ARM/Thumb
 
-**État : code ajouté ; CI finale à vérifier sur le SHA de livraison.**
+**État : CI réussie — run [39754684102](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39754684102), commit `77e58405c09560a4e40a41cfc697797adb03e187`.**
 
 La tranche codegen ajoute RSB et CMN au sous-ensemble ARM data-processing immédiat, et étend Thumb du seul MOVS immédiat à MOVS/CMP/ADDS/SUBS. Le source généré calcule les flags propres à chaque opération : RSB calcule Operand2 - Rn et les flags dans cet ordre; CMN actualise les flags comme une addition sans écrire le registre destination; CMP Thumb ne modifie pas le registre comparé; ADDS/SUBS écrivent le registre et actualisent N/Z/C/V.
 
