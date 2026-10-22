@@ -26,7 +26,7 @@ Créer un recompilateur statique GBA en Rust qui **génère du code Rust**, comp
 
 ## Validation et limites
 
-- Le premier run CI (39744719658) a échoué sur le garde-fou ROM parce que le motif refusait aussi `rom/README.md`. Le filtre a été ajusté pour autoriser le README tout en refusant les ROM/BIOS/sauvegardes binaires.
+- Le premier run CI (39744719658) a échoué sur le garde-fou ROM parce que le motif refusait aussi `rom/README.md`. Une correction intermédiaire avait une expression shell mal fermée ; ce commit rétablit la syntaxe exacte et distingue les README des fichiers binaires. Le run suivant doit le confirmer.
 - Aucun `rustc` ni `cargo` n'était installé dans l'environnement de préparation utilisé ; le build local n'a donc pas été exécuté.
 - La nouvelle exécution CI doit encore valider le lockfile, les API de Bevy 0.20, le formatage, Clippy et les tests.
 - La fenêtre Bevy est un placeholder : le chargeur de ROM, l'analyse ARM/Thumb, l'IR, l'émission Rust et le modèle matériel ne sont pas implémentés.

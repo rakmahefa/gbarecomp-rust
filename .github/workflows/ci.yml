@@ -40,7 +40,7 @@ jobs:
       - name: Reject tracked ROMs, BIOS files, and save data
         shell: bash
         run: |
-          if git ls-files | grep -Eiq '(^|/)(rom|roms)/.*[.](gba|gbc|rom|bin|sav|srm)$|(^|/)bios/|[.](gba|gbc|rom|bin|sav|srm); then
+          if git ls-files | grep -Eiq '(^|/)(rom|roms)/.*[.](gba|gbc|rom|bin|sav|srm)$|(^|/)bios/|[.](gba|gbc|rom|bin|sav|srm)$'; then
             echo "::error::ROM/BIOS/save files must remain local and untracked."
             git ls-files | grep -Ei '(^|/)(rom|roms|bios)/|[.](gba|gbc|rom|bin|sav|srm)$' || true
             exit 1
