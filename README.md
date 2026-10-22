@@ -12,7 +12,7 @@ Le scaffold Rust/Bevy est initialisé. Il ouvre une fenêtre hôte et contient l
 
 ## Références
 
-- **[mstan/gbarecomp](https://github.com/mstan/gbarecomp)** — référence technique principale pour l'analyse statique ARM/Thumb et le modèle matériel GBA. Le projet amont est principalement en C++ et utilise PolyForm Noncommercial 1.0.0 ; ses mécanismes de secours à l'exécution ne sont pas adoptés ici. Voir [l'audit](audit.md) et [les références](docs/reference-projects.md).
+- **[mstan/gbarecomp](https://github.com/mstan/gbarecomp)** — référence technique principale pour l'analyse statique ARM/Thumb et le modèle matériel GBA. Le projet amont est principalement en C++ et utilise PolyForm Noncommercial 1.0.0 ; ses mécanismes de secours à l'exécution ne sont pas adoptés ici. Voir [l'audit technique](audit.md), [l'inventaire des fichiers](docs/repository-audit.md) et [les références](docs/reference-projects.md).
 - **[morluto/rea](https://github.com/morluto/rea)** — outil d'ingénierie inverse via CLI/MCP et moteurs d'analyse natifs. Le workflow REA prépare un bundle d'analyse ; il ne prétend pas exécuter une session d'agent dans GitHub Actions.
 
 ## Développement Linux
@@ -30,4 +30,8 @@ La ROM de développement doit être fournie localement et rester ignorée par Gi
 | Release (manual) | Déclenchement manuel | Validation tag/build, publication de l'artefact existant sans recompiler |
 | REA analysis bundle (manual) | Déclenchement manuel | Vérification et préparation d'un bundle REA depuis l'artefact existant |
 
-L'architecture du pipeline est détaillée dans [docs/workflows.md](docs/workflows.md). La passation de session est maintenue dans [SESSION_HANDOFF.md](SESSION_HANDOFF.md).
+## Maintenance de la documentation
+
+À chaque groupe de travail significatif, relire et mettre à jour si nécessaire **README.md**, **audit.md**, **docs/repository-audit.md** et **SESSION_HANDOFF.md**. L'inventaire et l'audit doivent refléter le dépôt réel et les résultats de CI, pas des intentions. Le handoff consigne explicitement les fichiers documentaires revus, les validations réellement exécutées, le commit et les risques restant ouverts.
+
+Voir [la stratégie des workflows](docs/workflows.md) et la [passation de session](SESSION_HANDOFF.md).

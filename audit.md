@@ -46,6 +46,10 @@ Le code généré est du Rust compilé avant distribution avec Cargo/rustc. Aucu
 
 La recompilation doit préserver les effets observables du CPU ARM7TDMI et des services matériels GBA. Le rendu Bevy est une couche de présentation et ne constitue pas l'état matériel canonique. Les contrats du bus, registres E/S, interruptions, DMA, timers, PPU, audio et sauvegardes doivent être documentés et testés. Aucun support de jeu ne doit être déclaré à partir du seul fait que le binaire compile.
 
+## Audit des fichiers et cadence documentaire
+
+L'inventaire fichier par fichier se trouve dans [docs/repository-audit.md](docs/repository-audit.md). À chaque groupe de travail significatif, revoir ce document, le présent audit et `README.md`, puis consigner dans `SESSION_HANDOFF.md` lesquels ont été relus et ce qui a changé. Une mise à jour est requise même si la conclusion est qu'aucun changement n'est nécessaire ; ne pas laisser ces fichiers dériver du dépôt ou de l'état réel de CI.
+
 ## Références de workflows
 
 - CI automatique sur PR et push Linux ; le workflow échoue si une ROM/BIOS/sauvegarde est suivie dans Git.

@@ -1,38 +1,49 @@
 # Session handoff
 
 Dernière mise à jour : 2026-10-22
-Groupe de travail : Phase 1 — scaffold Rust/Bevy et invariants de recompilation
-Branche de préparation : `phase-1/rust-bevy-static-only`
+Groupe de travail : Phase 1 — scaffold Rust/Bevy, audit des fichiers et correction CI
+Branche : `phase-1/rust-bevy-static-only`
+PR : [#2](https://github.com/rakmahefa/gbarecomp-rust/pull/2)
 
-## But du projet
+## But et invariant non négociable
 
-Créer un recompilateur statique GBA en Rust qui **génère du code Rust**, compilé avant lancement, avec Bevy comme runtime hôte. Linux x86_64 uniquement dans un premier temps. Aucune interprétation du code invité et aucun JIT ne sont autorisés.
+Le projet analyse du code GBA ARM7TDMI (ARM/Thumb) et **génère du code source Rust** qui sera compilé avant exécution avec Cargo/rustc. Bevy fournit le runtime hôte et la présentation ; il n'interprète pas le code invité.
 
-## État au début du groupe
+**Interdits : aucun interpréteur d'instructions invité, aucun JIT, aucune traduction de code invité à l'exécution.** Une cible indirecte non résolue ou une instruction non prise en charge doit échouer à l'étape de recompilation avec un diagnostic contextualisé. Ne jamais ajouter de fallback interprété/JIT.
 
-- La PR #1 de Phase 0 a été fusionnée sur `main` (commit `fed900f090e15779e02faa42abea0bf04568f73a`).
-- La ROM GBA a été retirée de l'arbre courant lors de la Phase 0 ; l'ancien blob subsiste dans l'historique Git et doit être purgé si sa redistribution n'est pas autorisée.
-- Le dépôt avait désormais la documentation et les quatre workflows GitHub Actions, mais pas encore de `Cargo.toml` ni de code Rust.
-- La référence GBARecomp amont est principalement C++/CMake et sous PolyForm Noncommercial 1.0.0 ; REA est sous MIT.
+## État avant ce groupe
 
-## Travail inclus dans ce groupe
+- PR #1 de Phase 0 fusionnée sur `main`, commit `fed900f090e15779e02faa42abea0bf04568f73a`.
+- La ROM a été supprimée de l'arbre courant mais le blob subsiste dans l'historique public antérieur ; vérifier les droits et envisager une purge coordonnée si la redistribution est non autorisée.
+- Le dépôt ne possédait pas encore de crate Rust ni de runtime Bevy.
 
-- Création du crate package et library `gbarecomp-rust`, du toolchain pin et du premier runtime fenêtre Bevy.
-- Pin Bevy `=0.20.0`; Rust `1.98.1`; cible Linux x86_64.
-- Création de l'ADR-0001 : génération source Rust statique, aucun interpréteur/JIT ; les cas non résolus échouent avec un diagnostic contextualisé.
-- Types d'erreur de recompilation initiaux et tests pour les cibles indirectes non résolues et le code invité généré au runtime.
-- Mise à jour du README, de l'audit, de l'architecture, des références, du guide Linux et de la stratégie CI/build.
-- CI et build rendus stricts : plus de succès apparent causé par l'absence de manifeste Cargo.
+## Changements de ce groupe
+
+- `Cargo.toml`, `Cargo.lock`, `rust-toolchain.toml`, `src/main.rs`, `src/lib.rs`, `src/runtime.rs` et `src/recompiler/mod.rs) ajoutés pour le premier scaffold.
+- Bevy `=0.20.0`, Rust `1.98.1`, cible de départ Linux x86_64.
+- `docs/decisions/ADR-0001-static-rust-recompilation.md` formalise la décision Rust statique sans interpréteur/JIT.
+- `docs/repository-audit.md` inventorie chaque fichier suivi et définit le cycle de revue documentaire.
+- README, audit de risque, architecture, guide de développement, références, workflows et ce handoff mis à jour.
+- CI rendue stricte et dépendances Linux de Bevy ajoutées aux workflows CI/build.
+- La CI précédente a échoué avant les commandes Rust ; les incidents du filtre ROM et de la syntaxe du workflow ont été identifiés et corrigés dans les commits de suivi.
+
+## Maintenance documentaire obligatoire
+
+À chaque groupe de travail significatif, relire et mettre à jour **README.md**, **audit.md**, **docs/repository-audit.md** et **SESSION_HANDOFF.md**. Si un fichier change de rôle ou est ajouté/supprimé/renommé, refléter ce changement dans l'inventaire. Le README doit décrire l'état vrai du dépôt, pas les objectifs futurs. Le handoff note la documentation revue, les résultats et échecs de validation, le SHA final et la prochaine étape. Faire aussi une revue complète avant chaque release.
 
 ## Validation et limites
 
-- Le premier run CI (39744719658) a échoué sur le garde-fou ROM parce que le motif refusait aussi `rom/README.md`. Une correction intermédiaire avait une expression shell mal fermée ; ce commit rétablit la syntaxe exacte et distingue les README des fichiers binaires. Le run suivant doit le confirmer.
-- Aucun `rustc` ni `cargo` n'était installé dans l'environnement de préparation utilisé ; le build local n'a donc pas été exécuté.
-- La nouvelle exécution CI doit encore valider le lockfile, les API de Bevy 0.20, le formatage, Clippy et les tests.
-- La fenêtre Bevy est un placeholder : le chargeur de ROM, l'analyse ARM/Thumb, l'IR, l'émission Rust et le modèle matériel ne sont pas implémentés.
-- Le choix de licence du code nouveau reste à décider.
-- La ROM n'est pas intégrée au binaire, aux artefacts ou au bundle REA.
+- Le run CI `39744719658` a échoué car le filtre refusait `rom/README.md`.
+- Le run push `39744961191` s'est terminé immédiatement en échec avec nom de workflow `.github/workflows/ci.yml` et sans jobs : la version de workflow sur la branche était syntaxiquement corrompue. Le contenu de `.github/workflows/ci.yml` a été réécrit proprement. Le prochain run PR doit confirmer son parsing avant qu'on puisse valider Rust.
+- Aucun build local n'a été exécuté dans l'environnement de préparation ; il ne disposait pas de Cargo/rustc.
+- Le lockfile Bevy a été basé sur une résolution Cargo existante de Bevy 0.20 et adapté au package du projet ; **il faut le laisser à la CI avec `--locked`**. Toute erreur du resolver doit être corrigée via Cargo puis le nouveau lockfile commité.
+- Le runtime ne fait qu'ouvrir une fenêtre Bevy et afficher une forme de remplacement ; pas de chargement ROM, décodeur ARM/Thumb, IR, émetteur Rust ou modèle matériel encore.
 
-## Prochaine tâche
+## Prochaine étape
 
-Exécuter et corriger le premier build CI. Ensuite commencer une première tranche statique testable : parseur d'en-tête GBA, cartographie ROM, puis quelques instructions ARM/Thumb et génération d'un module Rust natif. Chaque groupe de commits qui clôt une tâche doit ajouter ses changements, tests exécutés, SHA et risques ici.
+1. Confirmer que le run CI de PR parse le workflow et passe le garde-fou ROM.
+2. Corriger le lockfile/API/formattage/Clippy selon le vrai résultat de CI.
+3. Une fois le scaffold validé, ajouter le parseur d'en-tête GBA et une carte des régions ROM.
+4. Puis ajouter un ensemble limité d'instructions ARM/Thumb et des tests qui valident l'émission Rust et ses effets. Aucune de ces étapes ne doit ajouter un interpréteur/JIT.
+
+Chaque commit de clôture de groupe doit mettre à jour ce handoff.
