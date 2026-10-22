@@ -1,0 +1,24 @@
+# Rust / native builds
+/target/
+/build/
+/dist/
+/artifacts/
+*.profraw
+
+# Local reverse-engineering work
+/.rea/
+/.rea-cache/
+/ghidra/
+/analysis-output/
+/captures/
+
+# Local ROMs and dumps: keep only the instructions in this directory.
+/rom/*
+!/rom/README.md
+
+# Editor / OS noise
+/.idea/
+/.vscode/
+*.swp
+.DS_Store
+Thumbs.db

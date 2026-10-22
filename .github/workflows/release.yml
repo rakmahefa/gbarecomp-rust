@@ -1,0 +1,105 @@
+name: Release (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: "ID of a successful Build (Linux) run that produced the artifact"
+        required: true
+        type: string
+      tag:
+        description: "Existing tag at exactly the same commit as the selected build (for example v0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish existing Linux artifact
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate build run and tag
+        id: validate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          TAG: ${{ inputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$TAG" =~ ^v[0-9]+[.][0-9]+[.][0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Tag must look like vMAJOR.MINOR.PATCH."
+            exit 1
+          fi
+
+          run_json="$(gh run view "$BUILD_RUN_ID" --json workflowName,headSha,headBranch,conclusion)"
+          workflow_name="$(jq -r '.workflowName' <<< "$run_json")"
+          conclusion="$(jq -r '.conclusion' <<< "$run_json")"
+          head_sha="$(jq -r '.headSha' <<< "$run_json")"
+          head_branch="$(jq -r '.headBranch' <<< "$run_json")"
+          if [[ "$workflow_name" != "Build (Linux)" || "$conclusion" != "success" || "$head_branch" != "main" ]]; then
+            echo "::error::Selected run must be a successful Build (Linux) run for main."
+            exit 1
+          fi
+
+          git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          tag_sha="$(git rev-parse "$TAG^{commit}")"
+          if [[ "$tag_sha" != "$head_sha" ]]; then
+            echo "::error::Tag commit ($tag_sha) differs from build commit ($head_sha)."
+            exit 1
+          fi
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Download built distribution
+        uses: actions/download-artifact@v4
+        with:
+          name: gbarecomp-linux-x86_64
+          path: dist/release
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.build_run_id }}
+
+      - name: Verify package and checksum
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          archive="dist/release/gbarecomp-rust-linux-x86_64.tar.gz"
+          test -f "$archive"
+          (cd dist/release && sha256sum -c gbarecomp-rust-linux-x86_64.tar.gz.sha256)
+          if tar -tzf "$archive" | grep -Eiq '[.](gba|gbc|rom|sav|srm)$'; then
+            echo "::error::Refusing to publish an archive containing ROM/save data."
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::A release already exists for this tag; this workflow will not overwrite it."
+            exit 1
+          fi
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+          BUILD_COMMIT: ${{ steps.validate.outputs.head_sha }}
+        run: |
+          gh release create "$TAG" dist/release/gbarecomp-rust-linux-x86_64.tar.gz dist/release/gbarecomp-rust-linux-x86_64.tar.gz.sha256 --title "GBARecomp Rust $TAG" --generate-notes
+          {
+            echo "## Release published"
+            echo "- Tag: $TAG"
+            echo "- Build commit: $BUILD_COMMIT"
+            echo "- Artifact reused from Build (Linux); no compilation ran in this workflow."
+          } >> "$GITHUB_STEP_SUMMARY"

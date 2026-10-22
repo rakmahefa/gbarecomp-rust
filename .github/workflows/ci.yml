@@ -1,0 +1,77 @@
+name: CI (Linux)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Repository hygiene and Rust checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check patch whitespace
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            git diff --check "origin/${{ github.base_ref }}...HEAD"
+          else
+            git diff-tree --check --no-commit-id --root -r HEAD
+          fi
+
+      - name: Reject tracked ROMs and save files
+        shell: bash
+        run: |
+          if git ls-files | grep -Eiq '(^|/)(rom|roms)/.*[.](gba|gbc|rom|bin|sav|srm|bios)$'; then
+            echo "::error::ROM/BIOS/save files must remain local and untracked."
+            git ls-files | grep -Ei '(^|/)(rom|roms)/.*[.](gba|gbc|rom|bin|sav|srm|bios)$' || true
+            exit 1
+          fi
+
+      - name: Detect Rust crate
+        id: project
+        shell: bash
+        run: |
+          if [[ -f Cargo.toml ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No Cargo.toml yet; Rust checks are skipped during Phase 0."
+            echo "Rust checks skipped: no Cargo.toml exists yet." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Install stable Rust
+        if: steps.project.outputs.present == 'true'
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust dependencies and build outputs
+        if: steps.project.outputs.present == 'true'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check formatting
+        if: steps.project.outputs.present == 'true'
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy
+        if: steps.project.outputs.present == 'true'
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+
+      - name: Run tests
+        if: steps.project.outputs.present == 'true'
+        run: cargo test --workspace --all-features --locked

@@ -1,0 +1,144 @@
+name: Build (Linux)
+
+on:
+  workflow_run:
+    workflows: ["CI (Linux)"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Release binary and REA inputs
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+    concurrency:
+      group: linux-build-main
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the exact CI commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 0
+
+      - name: Detect Rust crate
+        id: project
+        shell: bash
+        run: |
+          if [[ -f Cargo.toml ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "## Build skipped"
+              echo "No Cargo.toml exists at this commit. No binary or artifact was produced; add the Rust crate before using Release or REA workflows."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Install stable Rust
+        if: steps.project.outputs.present == 'true'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies and build outputs
+        if: steps.project.outputs.present == 'true'
+        uses: Swatinem/rust-cache@v2
+
+      - name: Compile and package
+        if: steps.project.outputs.present == 'true'
+        env:
+          CARGO_PROFILE_RELEASE_DEBUG: "1"
+          BUILD_COMMIT: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo metadata --locked --format-version 1 --no-deps > "$RUNNER_TEMP/cargo-metadata.json"
+          mapfile -t bins < <(jq -r '.packages[].targets[] | select(.kind | index("bin")) | .name' "$RUNNER_TEMP/cargo-metadata.json" | sort -u)
+          if [[ "${#bins[@]}" -eq 0 ]]; then
+            echo "::error::No binary target found in Cargo metadata."
+            exit 1
+          fi
+
+          cargo build --release --locked --workspace --bins
+
+          release_root="dist/release/gbarecomp-rust-linux-x86_64"
+          analysis_root="dist/analysis/gbarecomp-rust-linux-x86_64"
+          mkdir -p "$release_root/bin" "$analysis_root/bin" "$analysis_root/reports"
+
+          for name in "${bins[@]}"; do
+            binary="target/release/$name"
+            if [[ ! -f "$binary" ]]; then
+              echo "::error::Expected binary missing: $binary"
+              exit 1
+            fi
+            install -m 0755 "$binary" "$release_root/bin/$name"
+            install -m 0755 "$binary" "$analysis_root/bin/$name"
+            # Keep the public distribution lean, while preserving symbols in the REA copy.
+            strip --strip-unneeded "$release_root/bin/$name"
+            file "$binary" >> "$analysis_root/reports/file.txt"
+            readelf -h -l -S -s "$binary" >> "$analysis_root/reports/readelf.txt"
+            nm -C --defined-only "$binary" >> "$analysis_root/reports/symbols.txt" || true
+          done
+
+          if [[ -f README.md ]]; then install -m 0644 README.md "$release_root/README.md"; fi
+          if [[ -f LICENSE ]]; then install -m 0644 LICENSE "$release_root/LICENSE"; fi
+          if [[ -d assets ]]; then cp -a assets "$release_root/assets"; cp -a assets "$analysis_root/assets"; fi
+          if [[ -f README.md ]]; then install -m 0644 README.md "$analysis_root/PROJECT-README.md"; fi
+
+          rustc --version > "$analysis_root/reports/rustc-version.txt"
+          git log -1 --format='%H%n%ct%n%s' "$BUILD_COMMIT" > "$analysis_root/reports/source-commit.txt"
+
+          jq -n --arg commit "$BUILD_COMMIT" --arg target "x86_64-unknown-linux-gnu" --arg profile "release-with-debug-symbols" --argjson binaries "$(printf '%s\n' "${bins[@]}" | jq -R . | jq -s .)" '{commit:$commit,target:$target,profile:$profile,binaries:$binaries,rom_included:false}' > "$release_root/build-info.json"
+          cp "$release_root/build-info.json" "$analysis_root/manifest.json"
+          cp "$release_root/build-info.json" "$analysis_root/build-info.json"
+          cat > "$analysis_root/REA_TASK.md" <<'EOF'
+          # REA analysis task
+
+          Target: native Linux x86_64 executable(s) produced by the selected build.
+          Do not execute the binary merely to inspect it. Begin with the reports and static analysis.
+
+          1. Identify executable entry points, symbol coverage, dynamic dependencies, and build/runtime initialization paths.
+          2. Distinguish facts from hypotheses and cite symbols, addresses, or disassembly evidence.
+          3. When source code is available, map findings to files without assuming that symbols alone prove semantic behavior.
+          4. This artifact does not contain the GBA test ROM, BIOS, saves, or guest ROM-derived code.
+          EOF
+
+          source_epoch="$(git show -s --format=%ct "$BUILD_COMMIT")"
+          mkdir -p dist/release-artifact dist/analysis-artifact
+          tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner -C dist/release -cf - gbarecomp-rust-linux-x86_64 | gzip -n > dist/release-artifact/gbarecomp-rust-linux-x86_64.tar.gz
+          tar --sort=name --mtime="@$source_epoch" --owner=0 --group=0 --numeric-owner -C dist/analysis -cf - gbarecomp-rust-linux-x86_64 | gzip -n > dist/analysis-artifact/gbarecomp-rea-input-linux-x86_64.tar.gz
+
+          if tar -tzf dist/release-artifact/gbarecomp-rust-linux-x86_64.tar.gz | grep -Eiq '[.](gba|gbc|rom|sav|srm)$'; then
+            echo "::error::Release package unexpectedly contains ROM or save data."
+            exit 1
+          fi
+          (cd dist/release-artifact && sha256sum gbarecomp-rust-linux-x86_64.tar.gz > gbarecomp-rust-linux-x86_64.tar.gz.sha256)
+          (cd dist/analysis-artifact && sha256sum gbarecomp-rea-input-linux-x86_64.tar.gz > gbarecomp-rea-input-linux-x86_64.tar.gz.sha256)
+
+          {
+            echo "## Build artefacts"
+            echo "- Commit: $BUILD_COMMIT"
+            echo "- Distribution artifact: gbarecomp-linux-x86_64"
+            echo "- REA input artifact: rea-analysis-input"
+            echo "- Build profile retains debug symbols to avoid a second compilation for REA."
+            echo "- ROM/save data is not included."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload distribution artifact
+        if: steps.project.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: gbarecomp-linux-x86_64
+          path: dist/release-artifact/*
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload REA input artifact
+        if: steps.project.outputs.present == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: rea-analysis-input
+          path: dist/analysis-artifact/*
+          if-no-files-found: error
+          retention-days: 14
