@@ -5,4 +5,4 @@
 
 mod header;
 
-pub use header::{GbaHeader, RomHeaderError, GBA_HEADER_LEN};
+pub use header::{GBA_HEADER_LEN, GbaHeader, RomHeaderError};

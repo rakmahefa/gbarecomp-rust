@@ -31,7 +31,7 @@ Analyser le code GBA ARM7TDMI (ARM/Thumb) et **générer du code source Rust**, 
 ## Validation
 
 - À la clôture précédente, le run CI `39746990377` était vert pour le scaffold : filtre de ROM, `cargo fmt`, Clippy et `cargo test`.
-- **Le commit ajoutant ce parseur n'a pas encore été soumis à la CI** au moment de la rédaction de cette mise à jour. Ne pas présenter les nouveaux tests comme passés avant le résultat réel du workflow.
+- Le premier run du parseur, `39747920168`, a échoué sur `cargo fmt --check` car rustfmt demande de réordonner les noms dans le `pub use` de `src/rom/mod.rs`. Le correctif est dans le commit courant. Clippy et tests ont été ignorés sur ce run ; le run suivant doit les valider avant de déclarer cette tranche verte.
 - Aucun build local n'a été exécuté dans l'environnement de préparation ; la fenêtre Bevy n'a pas été testée par lancement interactif.
 - Le parseur ne charge pas la totalité de la ROM, ne mappe pas les régions ROM, ne décode pas ARM/Thumb et n'émet pas encore de code Rust.
 
