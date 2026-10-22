@@ -4,29 +4,13 @@
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ThumbInstruction {
-    Branch {
-        offset: i32,
-    },
-    ConditionalBranch {
-        condition: u8,
-        offset: i32,
-    },
-    MoveImmediate {
-        rd: u8,
-        immediate: u8,
-    },
-    BranchExchange {
-        rm: u8,
-    },
-    SoftwareInterrupt {
-        comment: u8,
-    },
-    LongBranchPrefix {
-        offset: i32,
-    },
-    LongBranchSuffix {
-        offset: u16,
-    },
+    Branch { offset: i32 },
+    ConditionalBranch { condition: u8, offset: i32 },
+    MoveImmediate { rd: u8, immediate: u8 },
+    BranchExchange { rm: u8 },
+    SoftwareInterrupt { comment: u8 },
+    LongBranchPrefix { offset: i32 },
+    LongBranchSuffix { offset: u16 },
     Unsupported,
 }
 
