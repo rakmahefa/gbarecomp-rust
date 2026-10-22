@@ -74,6 +74,8 @@ jobs:
             fi
             install -m 0755 "$binary" "$release_root/bin/$name"
             install -m 0755 "$binary" "$analysis_root/bin/$name"
+            # Keep the public distribution lean, while preserving symbols in the REA copy.
+            strip --strip-unneeded "$release_root/bin/$name"
             file "$binary" >> "$analysis_root/reports/file.txt"
             readelf -h -l -S -s "$binary" >> "$analysis_root/reports/readelf.txt"
             nm -C --defined-only "$binary" >> "$analysis_root/reports/symbols.txt" || true

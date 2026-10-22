@@ -39,6 +39,7 @@ Créer une recompilation statique GBA en Rust, avec Bevy comme runtime hôte. Li
 - Le workflow REA installe explicitement Node.js 24.11.0, compatible avec les engines déclarés par la version REA épinglée.
 - La vérification d'existence d'une release reçoit GH_TOKEN ; elle ne doit pas dépendre d'une lecture GitHub non authentifiée.
 - Le verrou de concurrence du build est limité au job éligible : un événement PR ignoré ne peut pas annuler un build main.
+- Le paquet public utilise une copie strip du binaire ; le bundle REA conserve les symboles, à partir de la même compilation.
 - Cette correction est dans un commit séparé et ce handoff est mis à jour avec lui.
 
 ## Règle pour les prochaines sessions

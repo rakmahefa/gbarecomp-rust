@@ -18,7 +18,7 @@ La Phase 0 ne contient pas encore de crate Rust. Avant le premier build réel, a
 - Tests : cargo test --workspace --all-features --locked
 - Build : cargo build --release --locked --workspace --bins
 
-Le workflow de build exige un manifeste et au moins une cible binaire. Il préserve des symboles de débogage dans le binaire construit pour l'analyse statique ; la même sortie sert à créer le paquet Linux et le bundle REA afin d'éviter une seconde compilation.
+Le workflow de build exige un manifeste et au moins une cible binaire. Il compile une seule fois avec les symboles de débogage : la copie de distribution est strip après compilation, tandis que le bundle REA conserve les symboles et les rapports ELF. Aucun second build n'est nécessaire.
 
 ## ROM de test
 

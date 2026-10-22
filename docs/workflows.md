@@ -6,7 +6,7 @@ La stratégie évite de compiler dans quatre workflows distincts :
 
 1. **CI (Linux)** démarre automatiquement sur pull request vers main et sur push à main. Elle réalise les contrôles génériques de dépôt et, quand Cargo.toml existe, cargo fmt, Clippy et les tests.
 2. **Build (Linux)** est déclenché par l'événement workflow_run après la fin de CI. Il ne poursuit que pour un push réussi sur main. La compilation release se déroule donc après la CI, pas en concurrence avec elle.
-3. Le build produit deux artefacts à partir de la même compilation : gbarecomp-linux-x86_64 (paquet distribuable) et rea-analysis-input (binaire avec symboles et rapports ELF). L'archive de release est construite par liste blanche ; le répertoire ROM n'est jamais copié.
+3. Le build produit deux artefacts à partir de la même compilation : gbarecomp-linux-x86_64 (binaire de distribution dont la copie est strip, pour limiter sa taille) et rea-analysis-input (copie non strip conservant les symboles et les rapports ELF). L'archive de release est construite par liste blanche ; le répertoire ROM n'est jamais copié.
 4. **Release (manual)** reçoit l'identifiant d'un run Build et un tag. Il vérifie que le run a réussi, que le tag désigne exactement le même commit, puis télécharge l'artefact existant et crée la release. Aucune compilation n'y est faite.
 5. **REA analysis bundle (manual)** reçoit l'identifiant d'un run Build, télécharge rea-analysis-input, vérifie le checksum et produit un bundle annoté. Aucune compilation n'y est faite.
 
