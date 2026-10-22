@@ -32,3 +32,8 @@ REA fournit une CLI/MCP et des workflows d'analyse pour binaires et applications
 - [Licence MIT](https://github.com/morluto/rea/blob/main/LICENSE)
 
 Le workflow épingle `rea-agents@6.7.0`. Modifier cette version seulement dans un groupe de travail qui vérifie sa compatibilité et met à jour `SESSION_HANDOFF.md`.
+
+
+## Carte mémoire GBA
+
+Pour les adresses du bus et les fenêtres Game Pak, consulter aussi le [guide mémoire GBA de gbadev](https://gbadev.net/gbadoc/memory.html). Il documente les trois fenêtres ROM de 32 MiB aux bases 0x08000000, 0x0A000000 et 0x0C000000, avec des réglages de wait-state distincts. Ce dépôt implémente son propre mapping Rust ; les détails de mirroring restent couverts par des tests, et les cas qu'on ne sait pas déterminer statiquement échouent explicitement.

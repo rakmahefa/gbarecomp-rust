@@ -40,7 +40,7 @@ La première compilation Bevy est lourde ; le workflow CI met en cache le regist
 
 ## Parseur d'en-tête et ROM locale
 
-Le parseur actuel inspecte les champs fixes du header de 0xC0 octets, expose le mot d'instruction ARM de branchement aux offsets 0..4 (pas sa destination résolue) et rapporte si le complement checksum correspond. Une entrée trop courte produit une erreur structurelle. Un checksum invalide est signalé sans masquer les autres champs ; il ne provoque pas encore un rejet automatique. Ceci ne constitue ni un chargeur de ROM complet, ni un décodeur ARM/Thumb, ni une recompilation.
+Le parseur actuel inspecte les champs fixes du header de 0xC0 octets, expose le mot d'instruction ARM de branchement aux offsets 0..4 (pas sa destination résolue) et rapporte si le complement checksum correspond. `GbaRom` mappe les trois fenêtres Game Pak CPU vers les offsets de fichier et conserve la fenêtre wait-state. Une taille ROM puissance de deux utilise un masque pour les alias ; une taille non puissance de deux hors fichier est rejetée explicitement. Ces règles de mapping sont une première tranche à valider, pas un modèle matériel complet. Les tests n'utilisent que des images synthétiques ; aucune ROM réelle n'est requise.
 
 La ROM de test doit être présente localement dans `rom/` et ignorée par Git. Vérifier avec :
 

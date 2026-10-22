@@ -2,7 +2,7 @@
 
 ## Résumé
 
-La CI Linux a validé le scaffold Rust/Bevy, son formatage, Clippy et ses tests au run [39746990377](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746990377). Cette tranche ajoute un parseur de l'en-tête fixe GBA et des tests synthétiques. Elle ne constitue pas encore un recompilateur : le chargement complet de ROM, le décodeur ARM/Thumb, l'IR, l'émission Rust et le modèle matériel restent à implémenter.
+La CI Linux a validé le scaffold Rust/Bevy, son formatage, Clippy et ses tests au run [39746990377](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39746990377). Les premières briques de cartouche sont un parseur de l'en-tête fixe et une abstraction d'image qui mappe les fenêtres Game Pak vers des offsets. Ce n'est pas encore un recompilateur : la découverte de code, le décodeur ARM/Thumb, l'IR, l'émission Rust et le modèle matériel restent à implémenter.
 
 ## Constatations et actions
 
@@ -18,7 +18,7 @@ Si sa redistribution publique n'est pas autorisée, une purge d'historique coord
 
 **Sévérité : élevée pour la couverture fonctionnelle ; attendue à ce stade.**
 
-Un parseur d'en-tête fixe est maintenant présent. Il lit les 0xC0 premiers octets requis, expose le mot d'instruction ARM de branchement stocké aux offsets 0..4 (sans prétendre avoir résolu sa destination) et les champs de titre, game code, maker code, unité, device type et version ; il calcule aussi le complement checksum. Il ne charge pas à lui seul la ROM entière, ne trouve pas les fonctions invitées et ne génère pas encore de code Rust. Il n'existe donc toujours pas de preuve de compatibilité avec un jeu GBA.
+Le parseur d'en-tête lit les 0xC0 premiers octets requis, expose le mot d'instruction ARM de branchement stocké aux offsets 0..4 (sans prétendre avoir résolu sa destination) et les champs de titre, game code, maker code, unité, device type et version ; il calcule aussi le complement checksum. `GbaRom` possède les octets, conserve les métadonnées d'en-tête et mappe les fenêtres CPU 0x08000000-0x09FFFFFF, 0x0A000000-0x0BFFFFFF et 0x0C000000-0x0DFFFFFF vers un offset du fichier. L'objet ne trouve pas les fonctions invitées et ne génère pas encore de code Rust. Il n'existe donc toujours pas de preuve de compatibilité avec un jeu GBA.
 
 ### A-03 — Licence de la référence C++ à vérifier avant tout portage de code
 
@@ -60,11 +60,11 @@ Le run `39745818857` a détecté que la chaîne de configuration Bevy retournait
 
 ### A-09 — Parseur de l'en-tête GBA : périmètre limité
 
-**État : parsing et tests synthétiques validés pour le commit précédent ; renommage sémantique soumis, CI en attente.**
+**État : en-tête et renommage validés par la CI ; mapping de fenêtres ajouté dans le commit courant, validation en attente.**
 
 Le parseur vérifie qu'au moins 0xC0 octets sont disponibles, expose le mot d'instruction ARM de branchement stocké aux offsets 0..4 et les champs fixes, expose les octets de titre/code/maker sans les normaliser et signale le complement checksum calculé. Le checksum incohérent est une information diagnostique et ne fait pas échouer le parsing structurel. Les tests utilisent uniquement une fixture synthétique, jamais la ROM de développement.
 
-Le premier run CI du parseur (`39747920168`) a échoué uniquement sur `cargo fmt --check`, qui demandait de réordonner la liste `pub use` dans `src/rom/mod.rs`. Le correctif de formatage a été validé par [le run CI `39748310841`](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39748310841) au commit `c96edb7bed71ba14f09bb857160d09621a9d849e` : formatage, Clippy et tests passent. Le champ `entry_point` a ensuite été renommé `entry_branch_opcode` pour décrire l'opcode ARM brut et non la destination calculée ; cette clarification attend le nouveau run.
+Le premier run CI du parseur (`39747920168`) a échoué uniquement sur `cargo fmt --check`, qui demandait de réordonner la liste `pub use` dans `src/rom/mod.rs`. Le correctif de formatage a été validé par [le run CI `39748310841`](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39748310841). Le renommage `entry_branch_opcode` a ensuite été validé au run [39749349856](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39749349856).
 
 Ce composant ne doit ni interpréter des instructions, ni exécuter du contenu ROM, ni déclencher une compilation de code invité. L'analyse et la génération de code restent des étapes statiques de build qui viendront plus tard.
 
@@ -79,3 +79,14 @@ Ce composant ne doit ni interpréter des instructions, ni exécuter du contenu R
 - Release manuelle : vérifie que le tag existant pointe exactement sur le commit du build et réutilise l'artefact.
 - Bundle REA manuel : réutilise l'artefact et ne relance aucune compilation.
 - Les artefacts temporaires sont conservés 14 jours ; la release taguée est le canal de distribution durable.
+
+
+### A-10 — Mapping statique des fenêtres Game Pak : policy explicite
+
+**État : code et tests ajoutés, CI de cette tranche en attente.**
+
+L'abstraction `GbaRom` associe les plages CPU documentées 0x08000000-0x09FFFFFF, 0x0A000000-0x0BFFFFFF et 0x0C000000-0x0DFFFFFF aux fenêtres wait-state 0, 1 et 2. Les fenêtres exposent le même contenu ROM ; le résultat conserve l'identité de la fenêtre pour ne pas perdre l'information de wait-state. La taille maximale acceptée ici est de 32 MiB.
+
+Pour une image dont la taille est une puissance de deux, le mapping utilise un masque de taille pour représenter l'alias des bits d'adresse hauts. Pour les images de taille non puissance de deux, les offsets au-delà des octets fournis deviennent une erreur explicite plutôt qu'un miroir deviné. Cette règle conservatrice devra être comparée à une ROM commerciale autorisée et à un oracle matériel avant toute affirmation de compatibilité.
+
+Référence de la carte mémoire : [gbadev — GBA memory map](https://gbadev.net/gbadoc/memory.html). Aucun code de cette référence n'est copié.
