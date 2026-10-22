@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 
 use gbarecomp_rust::recompiler::analysis::{self, AnalysisOptions};
 use gbarecomp_rust::recompiler::codegen::emit_rust_source;
-use gbarecomp_rust::rom::{GbaRom, GBA_HEADER_LEN};
+use gbarecomp_rust::rom::{GBA_HEADER_LEN, GbaRom};
 
 fn main() -> std::process::ExitCode {
     match run() {
@@ -96,10 +96,17 @@ fn load_rom(path: impl AsRef<Path>) -> Result<GbaRom, Box<dyn Error>> {
 fn print_inspection(path: &str, rom: &GbaRom) {
     let header = rom.header();
     println!("ROM: {path}");
-    println!("Size: {} bytes ({:.2} MiB)", rom.len(), rom.len() as f64 / 1_048_576.0);
+    println!(
+        "Size: {} bytes ({:.2} MiB)",
+        rom.len(),
+        rom.len() as f64 / 1_048_576.0
+    );
     println!("Title: {}", header.title_lossy());
     println!("Game code: {}", String::from_utf8_lossy(&header.game_code));
-    println!("Maker code: {}", String::from_utf8_lossy(&header.maker_code));
+    println!(
+        "Maker code: {}",
+        String::from_utf8_lossy(&header.maker_code)
+    );
     println!("Entry instruction: 0x{:08X}", header.entry_branch_opcode);
     println!("Fixed value: 0x{:02X}", header.fixed_value);
     println!("Software version: {}", header.software_version);
@@ -107,14 +114,21 @@ fn print_inspection(path: &str, rom: &GbaRom) {
         "Header checksum: declared=0x{:02X}, computed=0x{:02X} ({})",
         header.complement_checksum,
         header.calculated_checksum,
-        if header.checksum_valid { "ok" } else { "mismatch" }
+        if header.checksum_valid {
+            "ok"
+        } else {
+            "mismatch"
+        }
     );
     println!("Header size: {GBA_HEADER_LEN:#X} bytes");
 }
 
 fn print_analysis(report: &gbarecomp_rust::recompiler::ir::AnalysisReport) {
     println!("Static ARM/Thumb discovery (not a compatibility claim)");
-    println!("Decoded instruction encodings: {}", report.instruction_count);
+    println!(
+        "Decoded instruction encodings: {}",
+        report.instruction_count
+    );
     println!("Basic blocks: {}", report.blocks.len());
     println!("Instruction limit: {}", report.instruction_limit);
     println!("Limit reached: {}", report.reached_instruction_limit);
@@ -159,5 +173,7 @@ fn print_usage() {
     eprintln!("Usage:");
     eprintln!("  gbarecomp-recomp inspect <rom.gba>");
     eprintln!("  gbarecomp-recomp analyze <rom.gba> [--max-instructions N]");
-    eprintln!("  gbarecomp-recomp recompile <rom.gba> --emit <generated.rs> [--max-instructions N]");
+    eprintln!(
+        "  gbarecomp-recomp recompile <rom.gba> --emit <generated.rs> [--max-instructions N]"
+    );
 }
