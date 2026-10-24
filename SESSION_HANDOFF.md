@@ -1,31 +1,33 @@
 # Session handoff
 
-Dernière mise à jour : 2026-10-22
-État : PR #4 fusionnée, PR #5 fermée sans fusion
+Dernière mise à jour : 2026-10-24
+État : PR #4 fusionnée, PR #5 fermée sans fusion, PR #6 fusionnée
 Branche de reprise : `main`
-Merge commit de PR #4 : `fe9e1df5b74ccb686723adeea495419249e08d2f`
-Dernier SHA de documentation observé avant cette mise à jour : `73d66371f1aba688c486bedfa94bf04c0425067c`
+HEAD observé lors du diagnostic : `fcb951f327d81f9f96d3acdf335c767fe29c2c31` (merge de PR #6)
+CI (Linux) : [run 39762607498](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762607498) — succès
+Build (Linux) : [run 39762711875](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762711875) — succès
+Private ROM audit : [run 39762725872](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762725872) — échec au checkout SSH du dépôt privé
 
 
 
-## Mise à jour de session — accès à la ROM privée (2026-10-22)
+## État courant — accès à la ROM privée (2026-10-24)
 
-La PR [#6 — accès privé à la ROM](https://github.com/rakmahefa/gbarecomp-rust/pull/6) est ouverte depuis la branche `feature/private-rom-actions`. Le SHA `905a0726495f7073a58ccb08c090e7af27d9d4c3` était le HEAD au moment de la première vérification ; des mises à jour documentaires ont ensuite fait avancer la branche. Toujours lire le HEAD courant directement dans la PR avant de reprendre. Elle **n'est pas encore fusionnée dans main**.
+La [PR #6 — accès privé à la ROM](https://github.com/rakmahefa/gbarecomp-rust/pull/6) est fusionnée dans `main` au commit `fcb951f327d81f9f96d3acdf335c767fe29c2c31`. Le workflow `.github/workflows/private-rom-audit.yml` est donc présent sur `main` et a été lancé manuellement.
 
-- `rakmahefa/gbarecomp-rust` est public ; la connexion a les droits admin sur ce dépôt.
-- `rakmahefa/roms` est privé et contient un fichier ROM Emerald de 16 MiB. La connexion peut lire le dépôt, mais cet accès ne se transmet pas automatiquement au `GITHUB_TOKEN` d'un workflow GitHub Actions.
-- Le workflow ajouté est `.github/workflows/private-rom-audit.yml`. Il checkout le dépôt privé via une deploy key dédiée, construit `gbarecomp-recomp`, exécute `inspect` et `analyze` avec un budget réglable, et n'affiche que des statistiques agrégées. Il ne crée pas de build jouable et ne téléverse aucun artefact détaillé.
-- Action manuelle toujours requise : ajouter la clé publique comme deploy key en lecture seule dans `roms`, puis créer l'environnement `roms-audit` avec restriction de branche `main` et le secret `ROMS_DEPLOY_KEY` contenant la clé privée dans `gbarecomp-rust`. Suivre [docs/private-rom-workflow.md](docs/private-rom-workflow.md). Ne pas envoyer la clé privée dans la conversation.
-- Une fois cette configuration enregistrée, fusionner la branche/PR de préparation, lancer le workflow sur `main` et confirmer le résultat réel. Le dernier commit/état de la branche de préparation doit être vérifié dans GitHub avant la fusion.
-- Les workflows CI, Build, Release et REA actuels restent indépendants de la ROM. Ne jamais publier ROM, désassemblage détaillé, code généré depuis la ROM ou rapports détaillés dans ce dépôt public.
+- `rakmahefa/gbarecomp-rust` est public ; `rakmahefa/roms` est privé. L'accès au dépôt privé ne se transmet pas automatiquement au `GITHUB_TOKEN` d'un workflow GitHub Actions.
+- La CI générale est verte : [CI (Linux), run 39762607498](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762607498). Le build Linux est également vert : [run 39762711875](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762711875).
+- Le premier [audit ROM manuel, run 39762725872](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762725872), a échoué à l'étape **Checkout private ROM repository** avant l'installation de Rust ou toute analyse de la ROM. Logs : `Load key "...": error in libcrypto`, puis `git@github.com: Permission denied (publickey)`.
+- L'étape préalable de validation a réussi : le secret d'environnement `ROMS_DEPLOY_KEY` n'est donc pas vide. Le message `error in libcrypto` indique que la valeur reçue par le runner n'est pas parsable comme clé privée SSH — vérifier en priorité la copie/format multiligne du secret. Aucun résultat d'inspection/analyse ROM n'a été produit.
+- **Action manuelle requise** : sur la machine Linux où se trouve la clé dédiée, exécuter `ssh-keygen -y -f ~/.ssh/gbarecomp-rust-roms-actions >/dev/null`. En cas de succès, remplacer le secret d'environnement `roms-audit / ROMS_DEPLOY_KEY` par le contenu complet de la clé privée non chiffrée, en conservant les vraies nouvelles lignes, sans guillemets, sans encodage Base64 et sans utiliser le fichier `.pub`. Ne jamais partager la clé dans une conversation ou dans les logs. Vérifier que la clé publique correspondante reste enregistrée en deploy key **lecture seule** dans [rakmahefa/roms](https://github.com/rakmahefa/roms/settings/keys).
+- Après correction du secret, relancer **Private ROM audit (manual)** depuis `main`. Ne pas réexécuter à l'identique avant d'avoir corrigé la valeur du secret.
+- Le workflow ne publie que des compteurs agrégés, ne téléverse aucun artefact détaillé et supprime le checkout privé ainsi que les rapports bruts. Ne jamais publier ROM, désassemblage détaillé, code généré depuis la ROM ou rapports détaillés dans ce dépôt public.
 
 ### Prochaine séquence recommandée
 
-1. Terminer le setup manuel de la deploy key et du secret d'environnement.
-2. Revoir et fusionner la PR du workflow d'accès privé, puis lancer **Private ROM audit (manual)** depuis `main`.
-3. Vérifier les résultats d'analyse ; les diagnostics sont attendus puisque la couverture ARM/Thumb est très limitée.
-4. Reprendre le défaut de décodage ARM condition `0xF` décrit plus haut dans une nouvelle branche depuis le `main` courant ; la PR #5 reste fermée sans fusion.
-5. Après les premiers résultats réels, actualiser le présent handoff et l'état des validations. Ne pas déclarer de compilation complète d'Emerald tant que l'exécution complète n'a pas été implémentée et testée.
+1. Corriger et valider localement `ROMS_DEPLOY_KEY`, puis mettre à jour le secret dans l'environnement `roms-audit`.
+2. Relancer le workflow manuel sur `main` et confirmer que le checkout, `inspect` et l'analyse bornée terminent. Les diagnostics ARM/Thumb restent attendus et ne prouvent pas une recompilation complète d'Emerald.
+3. Reprendre le défaut de décodage ARM condition `0xF` décrit plus bas dans une branche neuve issue du `main` courant ; la PR #5 reste fermée sans fusion.
+4. Après des résultats d'audit réussis, actualiser ce handoff et l'état des validations. Ne jamais présenter l'analyse bornée comme une compilation complète du jeu.
 
 ## Consignes immédiates pour la prochaine session
 
@@ -51,11 +53,12 @@ Le code invité GBA ARM7TDMI est analysé à l'avance et les blocs pris en charg
 
 ## État des PR et de la CI
 
-- PR #4 : [fusionnée](https://github.com/rakmahefa/gbarecomp-rust/pull/4) dans `main` au merge commit `fe9e1df5b74ccb686723adeea495419249e08d2f`.
-- CI du code post-fusion : run [39756038257](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39756038257) réussi pour le merge commit : hygiène du dépôt, filtre ROM/BIOS/save, `cargo fmt`, Clippy strict et tests.
-- Le Build Linux post-fusion était encore en cours lors de la dernière vérification; vérifier sa conclusion dans [Actions](https://github.com/rakmahefa/gbarecomp-rust/actions).
-- Les mises à jour documentaires sur `main` ont déclenché une nouvelle CI sur le HEAD courant; vérifier le run le plus récent après cette modification.
-- La validation du code est faite par GitHub Actions. L'environnement de préparation précédent n'avait pas de toolchain Rust locale, donc aucun succès de compilation local n'est revendiqué.
+- PR #4 : [fusionnée](https://github.com/rakmahefa/gbarecomp-rust/pull/4) dans `main` au merge commit `fe9e1df5b74ccb686723adeea495419249e08d2f).
+- PR #5 : [fermée sans fusion](https://github.com/rakmahefa/gbarecomp-rust/pull/5). Ses changements ne sont pas présents dans `main) et ne doivent pas être supposés intégrés.
+- PR #6 : [fusionnée](https://github.com/rakmahefa/gbarecomp-rust/pull/6) ; elle ajoute le workflow manuel d'audit de ROM privée et sa documentation.
+- Sur le HEAD `fcb951f327d81f9f96d3acdf335c767fe29c2c31`, [CI (Linux), run 39762607498](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762607498) et [Build (Linux), run 39762711875](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762711875) ont réussi.
+- [Private ROM audit (manual), run 39762725872](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762725872) a échoué uniquement lors du chargement de la clé SSH destinée au checkout du dépôt privé. L'audit du binaire/ROM n'a donc pas commencé ; voir la section « État courant — accès à la ROM privée » et `docs/private-rom-workflow.md`.
+- La validation du code est réalisée par GitHub Actions ; aucun succès de compilation locale n'est revendiqué.
 - Aucun test différentiel mGBA/oracle, démarrage de jeu complet ou test matériel de compatibilité n'a été exécuté.
 
 ## Défaut connu et prochaine action
