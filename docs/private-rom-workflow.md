@@ -1,80 +1,59 @@
-# Accès contrôlé à la ROM privée depuis GitHub Actions
+# Flux d'analyse : dépôt ROM privé → artefact assaini → dépôt public
 
-## Architecture retenue
+## Architecture
 
-- Code et workflows : rakmahefa/gbarecomp-rust, dépôt public.
-- ROM de test : rakmahefa/roms, dépôt privé.
-- Authentification : clé SSH de déploiement dédiée, lecture seule, enregistrée comme secret d'environnement ROMS_DEPLOY_KEY dans l'environnement roms-audit.
-- Workflow consommateur : .github/workflows/private-rom-audit.yml, déclenché manuellement uniquement depuis main.
-- Le workflow ne publie ni la ROM, ni la désassemblage détaillé, ni les sources générées. Il expose uniquement un résumé agrégé, car les journaux et résumés d'un dépôt public ne doivent pas être traités comme des espaces privés.
+- `rakmahefa/roms` est le seul dépôt qui checkout et lit la ROM. Le workflow `.github/workflows/rom-analysis.yml` s'exécute manuellement depuis `main`.
+- Ce workflow checkout `rakmahefa/gbarecomp-rust@main` (dépôt public), construit `gbarecomp-recomp`, inspecte la ROM et effectue une analyse ARM/Thumb bornée.
+- Le même workflow exécute REA/Ghidra sur deux cibles : la ROM elle-même comme image ARM brute mappée à `0x08000000` (le rapport complet reste privé), puis le binaire Linux natif `gbarecomp-recomp` construit depuis le **code public**. L'analyse ARM brute est approximative : elle n'émule pas le processeur ARM7TDMI exact ni le matériel GBA, les accès MMIO, les wait states ou le banking. Elle ne prouve pas que le jeu soit entièrement recompilé ou exécutable.
+- Le dépôt public ne checkout plus le dépôt ROM et n'a plus besoin d'une deploy key SSH.
 
-Le GITHUB_TOKEN de gbarecomp-rust n'accorde pas automatiquement l'accès à un autre dépôt privé. La clé de déploiement limite l'accès à un seul dépôt. GitHub indique que les deploy keys sont en lecture seule par défaut et sont attachées à un dépôt spécifique : https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys.
+## Séparation des artefacts
 
-## Configuration manuelle requise
+Le workflow privé publie deux artefacts distincts, conservés 14 jours :
 
-La connexion GitHub utilisée pour cet audit ne peut pas créer/écrire les secrets Actions ou les deploy keys. Configure ces éléments dans l'interface GitHub ; ne colle jamais une clé privée dans un ticket, un commit ou une conversation.
+- `rom-analysis-private` dans `rakmahefa/roms` : inspection ROM brute, diagnostics détaillés, résultat REA complet de la ROM et résultat REA du binaire natif public. Il reste dans le dépôt privé. Ne pas le recopier dans un dépôt public.
+- `rom-analysis-public` dans `rakmahefa/roms` : `summary.json`, `summary.md`, checksums, statut/configuration simplifiée de la passe REA sur ROM et résultat REA du binaire natif issu du code public. Aucun octet ROM, nom de ROM, empreinte SHA-256 ROM, résultat REA détaillé/désassemblage/pseudocode ROM ou source générée depuis la ROM n'est inclus.
 
-### 1. Générer une clé dédiée sur ta machine Linux
+Le workflow public `.github/workflows/import-private-rom-analysis.yml` ne télécharge que `rom-analysis-public`. Il vérifie que le run source a réussi sur `main`, valide le schéma, les checksums et une liste autorisée de quatre fichiers, puis publie ce résultat assaini en artefact du run public. Les artefacts/actions d'un dépôt public sont eux-mêmes accessibles publiquement : il est donc intentionnel que **seul** l'artefact assaini y soit importé.
 
-    install -d -m 700 ~/.ssh
-    ssh-keygen -t ed25519 \
-      -C "gbarecomp-rust-readonly-roms" \
-      -f ~/.ssh/gbarecomp-rust-roms-actions \
-      -N ""
+## Configuration requise
 
-Cette paire de clés ne doit servir qu'à cet accès. La clé publique se termine par .pub ; la clé privée est le fichier sans extension.
+### 1. Fusionner les deux propositions de workflow
 
-### 2. Ajouter la clé publique au dépôt privé roms
+Fusionner d'abord la PR du dépôt privé `rakmahefa/roms`, qui ajoute `.github/workflows/rom-analysis.yml` et `docs/rom-analysis-workflow.md`. Fusionner ensuite la PR de `rakmahefa/gbarecomp-rust`, qui remplace le workflow d'accès direct à la ROM par l'import d'artefact. Les workflows ne sont exécutables manuellement depuis `main` qu'après leur fusion respective.
 
-Ouvre https://github.com/rakmahefa/roms/settings/keys, choisis **Add deploy key**, puis :
+### 2. Créer un jeton de lecture d'artefacts limité au dépôt privé
 
-- Titre : **gbarecomp-rust Actions (read-only)**
-- Key : colle le contenu de ~/.ssh/gbarecomp-rust-roms-actions.pub
-- **Ne coche pas** Allow write access.
+Dans les paramètres développeur GitHub, crée un **fine-grained personal access token** limité au seul dépôt `rakmahefa/roms`, avec uniquement la permission de dépôt **Actions: Read-only** (la permission Metadata requise par GitHub est en lecture seule). Il n'a pas besoin de permission Contents ni d'écriture. Un GitHub App token équivalent limité à Actions: read convient également.
 
-Enregistre la clé. Elle doit être ajoutée au dépôt roms, pas au dépôt public gbarecomp-rust.
+Ne place pas ce jeton dans le dépôt privé, un commit ou des logs. Il sera utilisé seulement pour lire le run et l'artefact du dépôt privé.
 
-### 3. Créer l'environnement et le secret dans gbarecomp-rust
+### 3. Enregistrer le jeton dans l'environnement du dépôt public
 
-Ouvre https://github.com/rakmahefa/gbarecomp-rust/settings/environments :
+Dans [les environnements de gbarecomp-rust](https://github.com/rakmahefa/gbarecomp-rust/settings/environments) :
 
-1. Crée l'environnement nommé exactement **roms-audit**.
-2. Dans les règles de déploiement, autorise uniquement la branche **main** (selected branches/tags).
-3. Ajoute un **environment secret** nommé exactement **ROMS_DEPLOY_KEY**.
-4. Comme valeur du secret, colle le contenu complet de ~/.ssh/gbarecomp-rust-roms-actions (la clé privée, sans l'exposer dans un commit ou une conversation).
-5. Sauvegarde.
+1. Crée l'environnement nommé exactement `roms-artifacts-read`.
+2. Restreins ses déploiements à la branche `main`.
+3. Ajoute un **environment secret** nommé exactement `ROMS_ARTIFACT_READ_TOKEN`, contenant le jeton précédent.
 
-L'environnement limité à main est important : le workflow avec accès au secret ne doit pas être lancé depuis une branche de test qui pourrait contenir un workflow modifié.
+Le workflow d'import refuse de s'exécuter ailleurs que sur `main`. Ne déclenche pas ce workflow depuis une branche non fiable avec le jeton disponible.
 
-Après avoir enregistré le secret, retire la copie locale si tu n'en as plus besoin. Ne publie ni la clé privée ni son contenu dans les logs.
+### 4. Exécuter puis importer
 
-## 4. Tester le workflow
+1. Dans [Actions de roms](https://github.com/rakmahefa/roms/actions/workflows/rom-analysis.yml), lance **Private ROM analysis (manual)** depuis `main`. Garde le budget borné proposé, sauf besoin explicite.
+2. Attends que le run privé termine avec succès et copie son **Run ID numérique**.
+3. Dans [Actions de gbarecomp-rust](https://github.com/rakmahefa/gbarecomp-rust/actions/workflows/import-private-rom-analysis.yml), lance **Import private ROM analysis result (manual)** depuis `main`, puis fournis ce Run ID.
+4. Télécharge le nouvel artefact public `rom-analysis-imported-<run-id>` dans le run d'import. Il ne doit contenir que le résumé agrégé et le résultat REA du binaire public.
 
-Ouvre https://github.com/rakmahefa/gbarecomp-rust/actions/workflows/private-rom-audit.yml, sélectionne **Private ROM audit (manual)**, choisis la branche main, conserve le budget par défaut (250000) et clique sur **Run workflow**.
+Si le run privé échoue, inspecte ses logs et l'artefact privé `rom-analysis-private`. Le workflow public refusera les runs privés échoués ou les fichiers supplémentaires/non autorisés.
 
-Le workflow exige exactement un fichier .gba à la racine de rakmahefa/roms. Le dépôt actuel satisfait ce contrat. Il construit gbarecomp-recomp, exécute inspect puis analyze sur le runner et affiche uniquement des compteurs agrégés. Aucun artefact n'est téléversé. Le runner supprime le checkout privé et les rapports bruts après l'exécution.
+## Nettoyage de l'ancien mécanisme
 
-### Résultats et limites
+L'ancien workflow `.github/workflows/private-rom-audit.yml` est remplacé par l'import d'artefact. Après validation de la nouvelle chaîne, supprimer le secret d'environnement `roms-audit / ROMS_DEPLOY_KEY` du dépôt public et retirer la deploy key SSH associée de `roms` si elle n'est plus utilisée. Aucune clé SSH d'accès à la ROM n'est requise par la nouvelle chaîne.
 
-- Une erreur du checkout privé indique en général une deploy key absente/incorrecte ou enregistrée au mauvais dépôt, ou un secret non disponible dans l'environnement roms-audit.
-- Un job vert signifie que le téléchargement, l'inspection et l'analyse bornée se sont terminés ; ce n'est **pas** une compilation complète du jeu.
-- L'analyse actuelle ne supporte qu'un sous-ensemble ARM/Thumb et ne démontre pas qu'Emerald puisse être recompilé ou lancé. Les diagnostics sont attendus et doivent être interprétés comme des limites de couverture.
-- Le workflow actuel ne lance pas REA sur des données dérivées de la ROM. Le bundle REA existant inspecte le binaire natif hôte ; les audits détaillés de code invité doivent rester dans un environnement privé tant que leurs sorties ne sont pas protégées.
-- Les workflows de Build (Linux), Release et REA existants restent indépendants de la ROM. Aucun paquet de distribution ne dépend de ce secret.
+## Limites
 
-### Dépannage : `Load key ... error in libcrypto`
-
-Si l'étape de checkout échoue avec `Load key "...": error in libcrypto`, suivie de `Permission denied (publickey)`, le runner a reçu un secret non vide mais OpenSSH n'arrive pas à le lire comme clé privée. Il s'agit généralement d'une valeur mal copiée, tronquée ou dont les retours à la ligne ont été transformés ; ce n'est pas une erreur de compilation Rust.
-
-1. Sur la machine Linux qui contient la clé, vérifier sa lisibilité sans afficher la clé :
-
-       ssh-keygen -y -f ~/.ssh/gbarecomp-rust-roms-actions >/dev/null
-
-   La clé générée par les instructions ci-dessus est non chiffrée. Si cette commande échoue, ne pas copier ce fichier dans GitHub ; corriger ou régénérer la paire.
-2. Dans `gbarecomp-rust → Settings → Environments → roms-audit → ROMS_DEPLOY_KEY`, remplacer la valeur par le contenu complet du fichier privé `~/.ssh/gbarecomp-rust-roms-actions`. Conserver les nouvelles lignes réelles, sans guillemets, sans chaîne `\n` littérale, sans Base64 et sans utiliser le fichier `.pub`. La clé privée doit rester secrète : ne la coller ni dans une conversation, ni dans un ticket, ni dans les logs.
-3. Vérifier que le fichier public correspondant `~/.ssh/gbarecomp-rust-roms-actions.pub` est enregistré en deploy key lecture seule dans `rakmahefa/roms`. Si une nouvelle paire a été créée, remplacer l'ancienne deploy key et le secret par les deux parties de cette même paire.
-4. Relancer manuellement le workflow depuis `main`. Ne relancer pas avant d'avoir corrigé le secret.
-
-## Incident / rotation de la clé
-
-Si la clé privée est exposée, supprime le secret ROMS_DEPLOY_KEY dans gbarecomp-rust, puis retire le deploy key correspondant dans roms et génère une nouvelle paire. Ne réutilise pas cette clé pour un autre dépôt.
+- L'analyse ARM/Thumb est bornée à un sous-ensemble limité de l'outil actuel, même en cas de réussite.
+- REA/Ghidra analyse le binaire natif Linux public ; ce résultat n'est pas un rapport REA de la ROM.
+- Le résumé public n'est pas une preuve de compatibilité totale d'Emerald et ne doit pas être interprété comme un build jouable.
+- La ROM, son empreinte, ses détails de désassemblage et tout code généré depuis elle demeurent dans le dépôt/artefact privé.
