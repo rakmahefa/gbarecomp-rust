@@ -11,7 +11,7 @@
 
 Le workflow privé publie deux artefacts distincts, conservés 14 jours :
 
-- `rom-analysis-private` dans `rakmahefa/roms` : inspection ROM brute, diagnostics détaillés et manifeste privé. Il reste dans le dépôt privé. Ne pas le recopier dans un dépôt public.
+- `rom-analysis-private` dans `rakmahefa/roms` : inspection ROM brute, diagnostics détaillés, résultat REA complet de la ROM et résultat REA du binaire natif public. Il reste dans le dépôt privé. Ne pas le recopier dans un dépôt public.
 - `rom-analysis-public` dans `rakmahefa/roms` : `summary.json`, `summary.md`, checksums et résultat REA du binaire natif issu du code public. Aucun octet ROM, nom de ROM, empreinte SHA-256 ROM, désassemblage détaillé ROM ou source générée depuis la ROM n'est inclus.
 
 Le workflow public `.github/workflows/import-private-rom-analysis.yml` ne télécharge que `rom-analysis-public`. Il vérifie que le run source a réussi sur `main`, valide le schéma, les checksums et une liste autorisée de quatre fichiers, puis publie ce résultat assaini en artefact du run public. Les artefacts/actions d'un dépôt public sont eux-mêmes accessibles publiquement : il est donc intentionnel que **seul** l'artefact assaini y soit importé.
