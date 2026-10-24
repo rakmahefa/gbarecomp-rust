@@ -30,12 +30,14 @@
 Le bundle REA contient le binaire hôte avec symboles, les rapports ELF, les métadonnées et les consignes. Il ne contient ni ROM, ni BIOS, ni code Rust généré à partir d'une ROM. REA sert à explorer les binaires et les traces hors de l'exécution principale ; le runtime livré reste exclusivement statique, sans interpréteur ni JIT.
 
 
-## Audit de ROM privée (manuel)
+## Analyse ROM et import des résultats (manuel)
 
-Le workflow **Private ROM audit (manual)** est séparé du build de distribution et du bundle REA standard. Il doit être lancé depuis `main`, utilise l'environnement GitHub `roms-audit` et récupère `rakmahefa/roms` avec le secret `ROMS_DEPLOY_KEY` (deploy key SSH en lecture seule). La configuration est décrite dans [private-rom-workflow.md](private-rom-workflow.md).
+Le workflow **Private ROM analysis (manual)** vit dans le dépôt privé `rakmahefa/roms`. Il checkout la ROM localement au runner privé, checkout le code public `gbarecomp-rust@main` sans secret cross-repo, construit `gbarecomp-recomp`, produit les rapports `inspect`/`analyze` et exécute REA/Ghidra sur le binaire natif public.
 
-Il compile la CLI `gbarecomp-recomp`, lance `inspect` et `analyze` sur l'unique fichier `.gba` à la racine du dépôt privé, avec un budget d'instructions limité. Il n'effectue pas de recompilation complète du jeu et n'essaie pas d'émettre du code généré.
+Il publie deux artefacts séparés dans le dépôt privé :
+- `rom-analysis-private` conserve les détails d'inspection ROM pour 14 jours.
+- `rom-analysis-public` contient uniquement un résumé agrégé, les checksums et le résultat REA du binaire natif du dépôt public. Il exclut l'empreinte de la ROM, son nom, les rapports bruts et le code généré.
 
-**Sorties et confidentialité :** le dépôt contenant les workflows est public. Le résumé ne montre que des compteurs agrégés ; la ROM, les sorties détaillées de l'analyse, le désassemblage et les éventuels codes générés ne sont pas téléversés en artefact ni en release. Les rapports bruts temporaires sont supprimés à la fin du job. Ne pas ajouter de future étape qui imprime ou téléverse les détails ROM-dérivés sans mettre ces sorties dans un environnement privé.
+Le workflow **Import private ROM analysis result (manual)** dans le dépôt public prend un Run ID privé. Avec un jeton fine-grained limité à la seule permission `Actions: read` sur `rakmahefa/roms`, il vérifie le succès du run, la liste blanche des fichiers, le schéma et les checksums, puis importe uniquement `rom-analysis-public`. L'artefact importé devient public : les données détaillées de la ROM ne doivent donc jamais y être incluses. La procédure est dans [private-rom-workflow.md](private-rom-workflow.md).
 
-Le secret est un secret d'environnement plutôt qu'un secret global du dépôt. L'environnement doit autoriser uniquement la branche `main`. Les workflows CI, Build, Release et REA existants ne reçoivent pas ce secret et restent indépendants de la ROM privée.
+Cette analyse demeure bornée. REA analyse le binaire natif de l'outil public et non la ROM GBA ; aucun succès ne signifie que Pokémon Emerald a été entièrement recompilé ou démarre. Après validation de la nouvelle chaîne, retirer l'ancien secret `roms-audit / ROMS_DEPLOY_KEY` et l'ancienne deploy key si elle ne sert plus.
