@@ -41,14 +41,14 @@
 | `.github/workflows/build.yml` | Build release Linux après succès CI sur push `main` ; distribution + entrée REA d'une même compilation. | PRs ignorées intentionnellement ; le run Build du merge PR #4 était en cours lors de la dernière vérification, à revérifier dans Actions. | Packaging, cible, profil Cargo ou artefacts change. |
 | `.github/workflows/release.yml` | Publie manuellement un artefact existant après validation tag/commit/checksum. | Manuel ; pas de compilation. | Politique de tag, droits ou format de release change. |
 | `.github/workflows/rea-analysis.yml` | Prépare un bundle REA depuis l'artefact existant sans recompiler. | Manuel ; n'affirme pas effectuer une investigation agent automatique. | Node/REA ou format du bundle change. |
-| `.github/workflows/private-rom-audit.yml` | Accède au dépôt privé `rakmahefa/roms` via un secret d'environnement et effectue inspection/analyse bornée ; aucun artefact ROM-dérivé détaillé. | Ajouté sur `feature/private-rom-actions` ; deploy key/secret non configurés ni testés à la date de cette revue. | Clé, environnement, politique de résumé ou contrat du dépôt privé change. |
+| `.github/workflows/import-private-rom-analysis.yml` | Valide un run réussi du dépôt privé, télécharge seulement `rom-analysis-public`, vérifie checksums/schéma/liste blanche et publie l'artefact assaini dans ce run public. | Proposé sur `automation/import-private-analysis-artifact`; jeton read-only et premier run non configurés/testés. | Contrat de l'artefact privé, permission Actions:read, schéma ou règle d'export change. |
+| `docs/private-rom-workflow.md` | Décrit la séparation privé/public, les artefacts et la configuration du token finement limité. | Mis à jour sur `automation/import-private-analysis-artifact`; configuration UI toujours requise. | Secrets, permissions ou schéma d'export changent. |
 | `docs/private-rom-workflow.md` | Explique l'architecture d'accès, la configuration manuelle read-only, le test et la rotation de clé. | Ajouté sur `feature/private-rom-actions` ; l'étape UI reste à exécuter par le propriétaire. | Secret, deploy key, permissions ou workflow changent. |
 | `rom/README.md` | Explique le mode local et renvoie vers le workflow d'analyse manuelle de la ROM privée. | ROM binaire toujours exclue de ce dépôt ; le clone privé temporaire réside sous `.private/roms` sur le runner. | Chemin ou politique de ROM change. |
 
-## État de la configuration privée (2026-10-22)
+## État de la configuration privée (2026-10-24)
 
-Le workflow et les documents associés sont proposés dans la [PR #6](https://github.com/rakmahefa/gbarecomp-rust/pull/6), branche `feature/private-rom-actions`, HEAD observé initialement `905a0726495f7073a58ccb08c090e7af27d9d4c3` (le HEAD courant doit être vérifié après d'éventuelles mises à jour). La PR n'est pas fusionnée dans `main`. La deploy key publique et le secret d'environnement restent à ajouter manuellement ; aucune exécution réelle du workflow privé n'est revendiquée. Voir [docs/private-rom-workflow.md](private-rom-workflow.md).
-
+Le workflow privé est proposé dans [rakmahefa/roms PR #1](https://github.com/rakmahefa/roms/pull/1). Il produit deux artefacts : rapports détaillés confinés au dépôt privé et un artefact public assaini. Le workflow d'import public est proposé dans la branche `automation/import-private-analysis-artifact`. La configuration du jeton fine-grained avec uniquement Actions:read et la première exécution des deux workflows restent à faire. Le workflow privé n'a pas encore été exécuté et le contenu de ses artefacts n'a pas été vérifié par un run réel. Voir [docs/private-rom-workflow.md](private-rom-workflow.md).
 ## Règle de mise à jour obligatoire
 
 À chaque groupe de travail, avant le commit de clôture :
