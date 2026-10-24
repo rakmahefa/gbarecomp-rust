@@ -139,5 +139,3 @@ L'ancienne architecture plaçait le workflow d'inspection dans le dépôt public
 - REA/Ghidra reçoit la ROM comme image ARM générique à `0x08000000`; cela ne reproduit pas fidèlement ARM7TDMI ni les éléments matériels GBA (MMIO, wait states, banking). Le JSON REA privé peut donc contenir des diagnostics/limitations et ne prouve pas une recompilation complète ou un démarrage d'Emerald.
 
 État : le workflow privé est proposé dans [rakmahefa/roms PR #1](https://github.com/rakmahefa/roms/pull/1) et l'importateur public dans [gbarecomp-rust PR #7](https://github.com/rakmahefa/gbarecomp-rust/pull/7). Les deux PR restent à revoir/fusionner ; aucun run de la nouvelle chaîne n'a été exécuté. Voir [docs/private-rom-workflow.md](docs/private-rom-workflow.md) pour la configuration manuelle et l'ordre des opérations.
-
-
