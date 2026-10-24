@@ -47,7 +47,6 @@ jobs:
              .event == "workflow_dispatch" and
              .status == "completed" and
              .conclusion == "success"' \
-
             <<< "$run_json" >/dev/null || {
               echo "::error::Run ID is not a successful Private ROM analysis run on rakmahefa/roms main."
               exit 1
@@ -84,7 +83,6 @@ jobs:
              (.rom | has("sha256") | not) and
              .rea.status == "success" and
              .rea.scope == "public source binary only"' \
-
             imported/summary.json >/dev/null
           if find imported -type f \( -iname '*.gba' -o -iname '*.gbc' -o -iname '*.sav' -o -iname '*disassembly*' -o -iname 'rom-inspect.txt' -o -iname 'rom-analysis.txt' \) -print -quit | grep -q .; then
             echo "::error::Private ROM data or detailed inspection report found in the public artifact."
