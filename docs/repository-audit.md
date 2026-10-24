@@ -48,7 +48,7 @@
 
 ## État de la configuration privée (2026-10-24)
 
-Le workflow privé est proposé dans [rakmahefa/roms PR #1](https://github.com/rakmahefa/roms/pull/1). Il produit deux artefacts : rapports détaillés confinés au dépôt privé et un artefact public assaini. Le workflow d'import public est proposé dans la branche `automation/import-private-analysis-artifact`. La configuration du jeton fine-grained avec uniquement Actions:read et la première exécution des deux workflows restent à faire. Le workflow privé n'a pas encore été exécuté et le contenu de ses artefacts n'a pas été vérifié par un run réel. Voir [docs/private-rom-workflow.md](private-rom-workflow.md).
+Le workflow privé est proposé dans [rakmahefa/roms PR #1](https://github.com/rakmahefa/roms/pull/1); l'importeur public dans [gbarecomp-rust PR #7](https://github.com/rakmahefa/gbarecomp-rust/pull/7). La configuration du jeton fine-grained limité à Actions:read et la première exécution des deux workflows restent à faire. Le workflow privé n'a pas encore été exécuté et le contenu de ses artefacts n'a pas été vérifié par un run réel. Voir [docs/private-rom-workflow.md](private-rom-workflow.md).
 ## Règle de mise à jour obligatoire
 
 À chaque groupe de travail, avant le commit de clôture :
