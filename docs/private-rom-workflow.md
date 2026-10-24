@@ -62,6 +62,19 @@ Le workflow exige exactement un fichier .gba à la racine de rakmahefa/roms. Le 
 - Le workflow actuel ne lance pas REA sur des données dérivées de la ROM. Le bundle REA existant inspecte le binaire natif hôte ; les audits détaillés de code invité doivent rester dans un environnement privé tant que leurs sorties ne sont pas protégées.
 - Les workflows de Build (Linux), Release et REA existants restent indépendants de la ROM. Aucun paquet de distribution ne dépend de ce secret.
 
+### Dépannage : `Load key ... error in libcrypto`
+
+Si l'étape de checkout échoue avec `Load key "...": error in libcrypto`, suivie de `Permission denied (publickey)`, le runner a reçu un secret non vide mais OpenSSH n'arrive pas à le lire comme clé privée. Il s'agit généralement d'une valeur mal copiée, tronquée ou dont les retours à la ligne ont été transformés ; ce n'est pas une erreur de compilation Rust.
+
+1. Sur la machine Linux qui contient la clé, vérifier sa lisibilité sans afficher la clé :
+   
+       ssh-keygen -y -f ~/.ssh/gbarecomp-rust-roms-actions >/dev/null
+
+   La clé générée par les instructions ci-dessus est non chiffrée. Si cette commande échoue, ne pas copier ce fichier dans GitHub ; corriger ou régénérer la paire.
+2. Dans `gbarecomp-rust → Settings → Environments → roms-audit → ROMS_DEPLOY_KEY`, remplacer la valeur par le contenu complet du fichier privé `~/.ssh/gbarecomp-rust-roms-actions`. Conserver les nouvelles lignes réelles, sans guillemets, sans chaîne `\n` littérale, sans Base64 et sans utiliser le fichier `.pub`. La clé privée doit rester secrète : ne la coller ni dans une conversation, ni dans un ticket, ni dans les logs.
+3. Vérifier que le fichier public correspondant `~/.ssh/gbarecomp-rust-roms-actions.pub` est enregistré en deploy key lecture seule dans `rakmahefa/roms`. Si une nouvelle paire a été créée, remplacer l'ancienne deploy key et le secret par les deux parties de cette même paire.
+4. Relancer manuellement le workflow depuis `main`. Ne relancer pas avant d'avoir corrigé le secret.
+
 ## Incident / rotation de la clé
 
 Si la clé privée est exposée, supprime le secret ROMS_DEPLOY_KEY dans gbarecomp-rust, puis retire le deploy key correspondant dans roms et génère une nouvelle paire. Ne réutilise pas cette clé pour un autre dépôt.
