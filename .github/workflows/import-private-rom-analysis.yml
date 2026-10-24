@@ -73,15 +73,63 @@ jobs:
             printf 'Expected files:\n%s\nActual files:\n%s\n' "$expected" "$actual"
             exit 1
           fi
-          (cd imported && sha256sum --check checksums.sha256)
+          # Validate checksum file members before handing the file to sha256sum --check.
+          expected_names="$(printf '%s\\n' rea-native-analysis.json summary.json summary.md | sort)"
+          checksum_names="$(sed -E 's/^[0-9a-f]{64}  //' imported/checksums.sha256 | sort)"
+          if [[ "$checksum_names" != "$expected_names" ]] || grep -Evq '^[0-9a-f]{64}  (rea-native-analysis\\.json|summary\\.json|summary\\.md)
+          if find imported -type f \( -iname '*.gba' -o -iname '*.gbc' -o -iname '*.sav' -o -iname '*disassembly*' -o -iname 'rom-inspect.txt' -o -iname 'rom-analysis.txt' \) -print -quit | grep -q .; then
+            echo "::error::Private ROM data or detailed inspection report found in the public artifact."
+            exit 1
+          fi
+
+      - name: Publish only the validated summary and public-binary REA result
+        shell: bash
+        run: |
+          {
+            echo "## Imported private ROM analysis summary"
+            echo
+            jq -r '[
+              "- Source commit: \\(.source_commit)",
+              "- ROM size: \\(.rom.size_bytes) bytes",
+              "- Header checksum: \\(.rom.header_checksum_status)",
+              "- Decoded instruction encodings: \\(.inspection.decoded_instruction_encodings)",
+              "- Basic blocks: \\(.inspection.basic_blocks)",
+              "- Diagnostics: \\(.inspection.diagnostics)",
+              "- Instruction budget reached: \\(.inspection.limit_reached)",
+              "- REA on ROM: \\(.rom_rea.status) (\\(.rom_rea.provider), \\(.rom_rea.architecture), entry \\(.rom_rea.entry_point)); details kept private",
+              "- REA native binary: \\(.rea.status) (\\(.rea.provider), \\(.rea.target))"
+            ] | .[]' imported/summary.json
+            echo
+            echo "The detailed ROM inspection and ROM REA report remain in the private repository artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Store imported safe artifact in this public run
+        uses: actions/upload-artifact@v4
+        with:
+          name: rom-analysis-imported-${{ steps.verify.outputs.run_id }}
+          path: imported/*
+          if-no-files-found: error
+          retention-days: 14
+ imported/checksums.sha256; then
+            echo "::error::Checksum file contains an unexpected path or entry."
+            exit 1
+          fi
+          (cd imported && sha256sum --check --strict checksums.sha256)
           jq -e \
             '.schema_version == 1 and
              .source_repository == "rakmahefa/gbarecomp-rust" and
              (.source_commit | test("^[0-9a-f]{40}$")) and
+             (.rom.size_bytes | type == "number" and . > 0) and
+             (.inspection.decoded_instruction_encodings | type == "number" and . >= 0) and
+             (.inspection.basic_blocks | type == "number" and . >= 0) and
+             (.inspection.diagnostics | type == "number" and . >= 0) and
+             (.inspection.instruction_budget | type == "number" and . > 0 and . <= 1000000) and
+             (.inspection.limit_reached | type == "boolean") and
              .rom_bytes_included == false and
              .detailed_rom_report_included == false and
              (.rom | has("sha256") | not) and
              .rom_rea.status == "success" and
+             .rom_rea.provider == "ghidra" and
              .rom_rea.detailed_report_included == false and
              .rom_rea.architecture == "arm" and
              .rom_rea.entry_point == "0x08000000" and
