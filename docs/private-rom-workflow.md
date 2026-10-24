@@ -4,7 +4,7 @@
 
 - `rakmahefa/roms` est le seul dépôt qui checkout et lit la ROM. Le workflow `.github/workflows/rom-analysis.yml` s'exécute manuellement depuis `main`.
 - Ce workflow checkout `rakmahefa/gbarecomp-rust@main` (dépôt public), construit `gbarecomp-recomp`, inspecte la ROM et effectue une analyse ARM/Thumb bornée.
-- Le même workflow exécute ensuite REA/Ghidra sur le binaire Linux natif `gbarecomp-recomp` construit depuis le **code public**. Cette sortie REA décrit le binaire natif de l'outil ; elle ne représente pas une analyse REA directe du fichier GBA et n'implique pas que le jeu soit entièrement recompilé ou exécutable.
+- Le même workflow exécute REA/Ghidra sur deux cibles : la ROM elle-même comme image ARM brute mappée à `0x08000000` (le rapport complet reste privé), puis le binaire Linux natif `gbarecomp-recomp` construit depuis le **code public**. L'analyse ARM brute est approximative : elle n'émule pas le processeur ARM7TDMI exact ni le matériel GBA, les accès MMIO, les wait states ou le banking. Elle ne prouve pas que le jeu soit entièrement recompilé ou exécutable.
 - Le dépôt public ne checkout plus le dépôt ROM et n'a plus besoin d'une deploy key SSH.
 
 ## Séparation des artefacts
@@ -12,7 +12,7 @@
 Le workflow privé publie deux artefacts distincts, conservés 14 jours :
 
 - `rom-analysis-private` dans `rakmahefa/roms` : inspection ROM brute, diagnostics détaillés, résultat REA complet de la ROM et résultat REA du binaire natif public. Il reste dans le dépôt privé. Ne pas le recopier dans un dépôt public.
-- `rom-analysis-public` dans `rakmahefa/roms` : `summary.json`, `summary.md`, checksums et résultat REA du binaire natif issu du code public. Aucun octet ROM, nom de ROM, empreinte SHA-256 ROM, désassemblage détaillé ROM ou source générée depuis la ROM n'est inclus.
+- `rom-analysis-public` dans `rakmahefa/roms` : `summary.json`, `summary.md`, checksums, statut/configuration simplifiée de la passe REA sur ROM et résultat REA du binaire natif issu du code public. Aucun octet ROM, nom de ROM, empreinte SHA-256 ROM, résultat REA détaillé/désassemblage/pseudocode ROM ou source générée depuis la ROM n'est inclus.
 
 Le workflow public `.github/workflows/import-private-rom-analysis.yml` ne télécharge que `rom-analysis-public`. Il vérifie que le run source a réussi sur `main`, valide le schéma, les checksums et une liste autorisée de quatre fichiers, puis publie ce résultat assaini en artefact du run public. Les artefacts/actions d'un dépôt public sont eux-mêmes accessibles publiquement : il est donc intentionnel que **seul** l'artefact assaini y soit importé.
 
