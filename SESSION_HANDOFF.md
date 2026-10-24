@@ -53,11 +53,11 @@ Le code invité GBA ARM7TDMI est analysé à l'avance et les blocs pris en charg
 
 ## État des PR et de la CI
 
-- PR #4 : [fusionnée](https://github.com/rakmahefa/gbarecomp-rust/pull/4) dans `main` au merge commit `fe9e1df5b74ccb686723adeea495419249e08d2f).
-- PR #5 : [fermée sans fusion](https://github.com/rakmahefa/gbarecomp-rust/pull/5). Ses changements ne sont pas présents dans `main) et ne doivent pas être supposés intégrés.
+- PR #4 : [fusionnée](https://github.com/rakmahefa/gbarecomp-rust/pull/4) dans `main` au merge commit `fe9e1df5b74ccb686723adeea495419249e08d2f`.
+- PR #5 : [fermée sans fusion](https://github.com/rakmahefa/gbarecomp-rust/pull/5). Ses changements ne sont pas présents dans `main` et ne doivent pas être supposés intégrés.
 - PR #6 : [fusionnée](https://github.com/rakmahefa/gbarecomp-rust/pull/6) ; elle ajoute le workflow manuel d'audit de ROM privée et sa documentation.
 - Sur le HEAD `fcb951f327d81f9f96d3acdf335c767fe29c2c31`, [CI (Linux), run 39762607498](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762607498) et [Build (Linux), run 39762711875](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762711875) ont réussi.
-- [Private ROM audit (manual), run 39762725872](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762725872) a échoué uniquement lors du chargement de la clé SSH destinée au checkout du dépôt privé. L'audit du binaire/ROM n'a donc pas commencé ; voir la section « État courant — accès à la ROM privée » et `docs/private-rom-workflow.md`.
+- [Private ROM audit (manual), run 39762725872](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762725872) a échoué lors du chargement de la clé SSH destinée au checkout du dépôt privé. L'audit du binaire/ROM n'a donc pas commencé ; voir la section « État courant — accès à la ROM privée » et `docs/private-rom-workflow.md`.
 - La validation du code est réalisée par GitHub Actions ; aucun succès de compilation locale n'est revendiqué.
 - Aucun test différentiel mGBA/oracle, démarrage de jeu complet ou test matériel de compatibilité n'a été exécuté.
 
