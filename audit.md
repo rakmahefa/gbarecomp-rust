@@ -125,17 +125,17 @@ Dans `src/recompiler/arm.rs`, `decode` vérifie actuellement les motifs BX et SW
 Le calcul du PC ARM visible (`adresse instruction + 8`) est déjà présent dans le codegen fusionné. Le cas additionnel `SUB r0, pc, #8` proposé dans PR #5 n'est pas dans le test du codegen fusionné et devrait servir de test de non-régression.
 
 
-## Accès CI à la ROM privée — 2026-10-22
+## Analyse de ROM privée et transfert d'artefacts — 2026-10-24
 
-Le dépôt `rakmahefa/roms` est privé et contient la ROM Pokémon Emerald de développement. `gbarecomp-rust` reste public ; son `GITHUB_TOKEN` n'accorde donc pas automatiquement l'accès au dépôt privé distinct. Un nouveau workflow manuel, `.github/workflows/private-rom-audit.yml`, a été préparé pour récupérer la ROM avec une clé SSH dédiée en lecture seule, stockée comme secret d'environnement `ROMS_DEPLOY_KEY` dans `roms-audit`.
+L'ancienne architecture plaçait le workflow d'inspection dans le dépôt public et tentait de checkout `rakmahefa/roms` avec `ROMS_DEPLOY_KEY`. Le run [39762725872](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762725872) a échoué avec `Load key ... error in libcrypto` avant toute inspection. Elle est remplacée par une séparation de responsabilité : l'inspection se déroule dans le dépôt privé, et le dépôt public importe uniquement un artefact expressément assaini.
 
-### Contrôles de sécurité et statut
+### Nouvelle architecture proposée
 
-- **Configuration manuelle en attente :** ajouter le deploy key public dans Settings → Deploy keys du dépôt `roms`, sans autoriser l'écriture ; ajouter la clé privée comme secret d'environnement dans `gbarecomp-rust`.
-- L'environnement `roms-audit` doit autoriser uniquement `main`. Le workflow est manuel et les workflows publics CI/Build/Release/REA n'utilisent pas cette clé.
-- Le workflow attend exactement un fichier `.gba` à la racine de `roms`, exécute `inspect` et `analyze` avec un budget réglable (plafonné à 1 000 000 instructions), puis supprime le checkout et les rapports bruts du runner éphémère.
-- Les résumés et journaux d'un dépôt public ne sont pas privés. Seuls les compteurs agrégés sont écrits dans le résumé. Aucun artefact, release, code généré, dump ou rapport détaillé ROM-dérivé n'est téléversé.
-- Le workflow établit un chemin d'accès et vérifie l'analyse limitée actuelle ; il ne démontre pas qu'Emerald peut être recompilé ou exécuté. L'IR/codegen ne couvre qu'un sous-ensemble d'instructions.
-- Le cache Rust ne sauvegarde que les sorties Cargo ciblées et le cache de dépendances ; aucun fichier ROM ou rapport brut n'est écrit dans ces emplacements. Le checkout privé est placé hors du répertoire local `rom/` et n'est jamais inclus dans un paquet.
+- Le workflow privé `rakmahefa/roms/.github/workflows/rom-analysis.yml` checkout la ROM privée et `gbarecomp-rust@main`, construit la CLI, lance `inspect`/`analyze` et exécute REA/Ghidra sur le binaire natif public.
+- `rom-analysis-private` conserve les rapports ROM-dérivés détaillés dans le dépôt privé; `rom-analysis-public` comprend uniquement le résumé agrégé et le résultat REA du binaire public, qui ne dépend pas des octets ROM.
+- Le workflow public `.github/workflows/import-private-rom-analysis.yml` accepte un Run ID privé, vérifie le run source et l'intégrité/liste blanche de l'artefact, puis importe uniquement `rom-analysis-public`.
+- La consommation inter-dépôts nécessite un jeton fine-grained limité au dépôt privé `roms` et à la permission **Actions: read**, stocké comme secret d'environnement `ROMS_ARTIFACT_READ_TOKEN` dans `gbarecomp-rust`. Aucun jeton d'écriture ni accès Contents n'est nécessaire.
+- Ne jamais copier les rapports bruts, la ROM, son nom ou son empreinte, le désassemblage détaillé ou la source générée depuis la ROM dans l'artefact public.
+- REA/Ghidra cible le binaire natif `gbarecomp-recomp` compilé depuis le dépôt public. Ce n'est pas un résultat d'agent IA et ce n'est pas une analyse REA directe de la ROM. L'analyse ROM reste bornée à l'implémentation actuelle; cela ne prouve pas une recompilation complète ou un démarrage d'Emerald.
 
-Procédure et rotation de clé : [docs/private-rom-workflow.md](docs/private-rom-workflow.md). Les secrets et deploy keys ne peuvent pas être créés via la connexion GitHub utilisée durant cette session ; l'ajout dans l'interface GitHub et le premier run restent à confirmer.
+État : le workflow privé est proposé dans [rakmahefa/roms PR #1](https://github.com/rakmahefa/roms/pull/1). L'importateur public est proposé dans la branche `automation/import-private-analysis-artifact` et doit être fusionné avant test. Le premier run privé et l'import public n'ont pas encore été exécutés. Voir [docs/private-rom-workflow.md](docs/private-rom-workflow.md) pour la configuration manuelle et l'ordre des opérations.
