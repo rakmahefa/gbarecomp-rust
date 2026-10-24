@@ -81,6 +81,10 @@ jobs:
              .rom_bytes_included == false and
              .detailed_rom_report_included == false and
              (.rom | has("sha256") | not) and
+             .rom_rea.status == "success" and
+             .rom_rea.detailed_report_included == false and
+             .rom_rea.architecture == "arm" and
+             .rom_rea.entry_point == "0x08000000" and
              .rea.status == "success" and
              .rea.scope == "public source binary only"' \
             imported/summary.json >/dev/null
