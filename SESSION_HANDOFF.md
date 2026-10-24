@@ -12,24 +12,24 @@ Ancien audit direct depuis le dépôt public : [run 39762725872](https://github.
 
 Deux PRs ouvertes proposent de déplacer l'exécution dans le dépôt privé puis de faire importer au dépôt public un seul artefact assaini : [rakmahefa/roms#1](https://github.com/rakmahefa/roms/pull/1) et [gbarecomp-rust#7](https://github.com/rakmahefa/gbarecomp-rust/pull/7). Aucune nouvelle chaîne d'analyse n'a encore été exécutée de bout en bout.
 
-- Dans `roms`, `.github/workflows/rom-analysis.yml` checkout la ROM privée et le code public `gbarecomp-rust@main`, construit `gbarecomp-recomp`, exécute `inspect`/`analyze` et REA/Ghidra sur le binaire natif public. Il publie `rom-analysis-private` (détails ROM privés) et `rom-analysis-public` (résumé agrégé + résultat REA du binaire public seulement).
+- Dans `roms`, `.github/workflows/rom-analysis.yml` checkout la ROM privée et le code public `gbarecomp-rust@main`, construit `gbarecomp-recomp`, exécute `inspect`/`analyze`, puis REA/Ghidra sur la ROM elle-même comme image ARM brute à `0x08000000` et séparément sur le binaire natif public. `rom-analysis-private` contient les rapports détaillés de la ROM et le JSON REA de la ROM ; `rom-analysis-public` n'exporte que les compteurs agrégés, le statut/configuration de REA-ROM et le JSON REA du binaire natif public.
 - Dans `gbarecomp-rust`, `.github/workflows/private-rom-audit.yml` est retiré. Le nouveau `.github/workflows/import-private-rom-analysis.yml` accepte un Run ID, vérifie le run source, l'allowlist, le schéma et les checksums, puis importe seulement `rom-analysis-public`.
 - Le jeton requis dans le dépôt public est un fine-grained token / GitHub App token limité au seul dépôt privé `roms` avec **Actions: read**. Il est enregistré dans l'environnement public `roms-artifacts-read`, restreint à `main`, sous le secret `ROMS_ARTIFACT_READ_TOKEN`. Le workflow privé n'a pas besoin de clé SSH ou de secret pour cloner le dépôt public.
-- L'artefact public exclut les octets ROM, le nom et le SHA-256 ROM, les rapports d'inspection détaillés et le code généré depuis la ROM. La sortie REA incluse porte uniquement sur le binaire natif public `gbarecomp-recomp`, pas sur la ROM GBA; il s'agit d'une analyse native avec Ghidra, pas d'un rapport rédigé par un agent IA.
-- Une fois les PR fusionnées : configurer le token, lancer `Private ROM analysis (manual)` sur `main` dans `roms`, attendre le succès, copier le Run ID et lancer `Import private ROM analysis result (manual)` depuis `main` dans `gbarecomp-rust`. Seulement après validation, supprimer l'ancien secret `roms-audit / ROMS_DEPLOY_KEY` et la deploy key correspondante si elle ne sert plus.
+- L'artefact public exclut les octets ROM, le nom et le SHA-256 ROM, le JSON REA-ROM détaillé, le désassemblage/pseudocode et le code généré depuis la ROM. REA/Ghidra utilise un langage ARM générique avec base `0x08000000`, pas un modèle exact ARM7TDMI/GBA ; pas d'émulation de MMIO/banking et aucune preuve de compilation complète du jeu.
+- Après fusion des PR : configurer le token, lancer `Private ROM analysis (manual)` sur `main` dans `roms`, attendre le succès, copier le Run ID et lancer `Import private ROM analysis result (manual)` depuis `main` dans `gbarecomp-rust`. Seulement après validation, supprimer l'ancien secret `roms-audit / ROMS_DEPLOY_KEY` et la deploy key correspondante si elle ne sert plus.
 
 ### CI / validation de la proposition
 
 - La CI de la base publique, [run 40058586979](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40058586979), et son build, [run 40058729974](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40058729974), sont réussis avant cette proposition.
-- La CI de la PR publique #7, [run 40060146806](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40060146806), était encore en cours au moment de la dernière consultation.
-- Le workflow privé #1 n'a pas encore été fusionné ni exécuté. Le téléchargement Ghidra/REA et le schéma d'artefact restent donc à valider lors du premier run réel.
+- La CI publique la plus récente vérifiée sur la branche de PR #7, [run 40060200483](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40060200483), est verte pour le HEAD `d22503a`; ses vérifications Rust (format, Clippy, tests) et hygiène passent. Des commits documentaires/workflow plus récents peuvent avoir déclenché un run supplémentaire ; à re-vérifier avant fusion.
+- Le workflow privé PR #1 n'a pas encore été fusionné ni exécuté. La passe REA-ROM, Ghidra/REA et le schéma d'artefact restent donc à vérifier au premier run réel.
 - L'ancien run [39762725872](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762725872) n'a jamais commencé l'inspection : `Load key ... error in libcrypto` puis `Permission denied (publickey)`.
 
 ### Prochaine séquence recommandée
 
 1. Revoir et fusionner `roms#1`; revoir et fusionner `gbarecomp-rust#7` ensuite.
 2. Configurer `ROMS_ARTIFACT_READ_TOKEN` dans l'environnement `roms-artifacts-read` du dépôt public, avec permission Actions:read uniquement sur `roms`.
-3. Exécuter l'analyse privée, puis l'import public avec son Run ID. Inspecter l'artefact public et confirmer l'absence de fichiers ou empreintes ROM privés.
+3. Exécuter l'analyse privée, puis l'import public avec son Run ID. Inspecter l'artefact public et confirmer l'absence de fichiers, hash ou détails ROM privés.
 4. Reprendre ensuite le défaut ARM `condition == 0x0F` décrit plus bas dans une branche neuve depuis le `main` courant; PR #5 reste fermée sans fusion.
 
 ## Consignes immédiates pour la prochaine session
