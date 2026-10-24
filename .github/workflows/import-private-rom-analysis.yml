@@ -1,0 +1,111 @@
+name: Import private ROM analysis result (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      private_run_id:
+        description: "Successful Private ROM analysis (manual) run ID from rakmahefa/roms"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: import-private-rom-analysis
+  cancel-in-progress: false
+
+jobs:
+  import:
+    name: Import the public-safe result artifact
+    if: ${{ github.repository == 'rakmahefa/gbarecomp-rust' && github.ref == 'refs/heads/main' }}
+    environment: roms-artifacts-read
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Validate private workflow run
+        id: verify
+        env:
+          GH_TOKEN: ${{ secrets.ROMS_ARTIFACT_READ_TOKEN }}
+          PRIVATE_RUN_ID: ${{ inputs.private_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$GH_TOKEN" ]]; then
+            echo "::error::Missing environment secret ROMS_ARTIFACT_READ_TOKEN. Follow docs/private-rom-workflow.md."
+            exit 1
+          fi
+          if [[ ! "$PRIVATE_RUN_ID" =~ ^[1-9][0-9]{0,14}$ ]]; then
+            echo "::error::private_run_id must be a numeric GitHub Actions run ID."
+            exit 1
+          fi
+          run_json="$(gh api "repos/rakmahefa/roms/actions/runs/$PRIVATE_RUN_ID")"
+          jq -e \
+            '.name == "Private ROM analysis (manual)" and
+             .path == ".github/workflows/rom-analysis.yml" and
+             .head_branch == "main" and
+             .event == "workflow_dispatch" and
+             .status == "completed" and
+             .conclusion == "success"' \
+
+            <<< "$run_json" >/dev/null || {
+              echo "::error::Run ID is not a successful Private ROM analysis run on rakmahefa/roms main."
+              exit 1
+            }
+          printf 'run_id=%s\n' "$PRIVATE_RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Download only the public-safe artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rom-analysis-public
+          repository: rakmahefa/roms
+          run-id: ${{ steps.verify.outputs.run_id }}
+          github-token: ${{ secrets.ROMS_ARTIFACT_READ_TOKEN }}
+          path: imported
+
+      - name: Validate artifact allowlist, schema and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="$(printf '%s\n' checksums.sha256 rea-native-analysis.json summary.json summary.md | sort)"
+          actual="$(find imported -type f -printf '%P\n' | sort)"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error::Artifact file list does not match the public-safe allowlist."
+            printf 'Expected files:\n%s\nActual files:\n%s\n' "$expected" "$actual"
+            exit 1
+          fi
+          (cd imported && sha256sum --check checksums.sha256)
+          jq -e \
+            '.schema_version == 1 and
+             .source_repository == "rakmahefa/gbarecomp-rust" and
+             (.source_commit | test("^[0-9a-f]{40}$")) and
+             .rom_bytes_included == false and
+             .detailed_rom_report_included == false and
+             (.rom | has("sha256") | not) and
+             .rea.status == "success" and
+             .rea.scope == "public source binary only"' \
+
+            imported/summary.json >/dev/null
+          if find imported -type f \( -iname '*.gba' -o -iname '*.gbc' -o -iname '*.sav' -o -iname '*disassembly*' -o -iname 'rom-inspect.txt' -o -iname 'rom-analysis.txt' \) -print -quit | grep -q .; then
+            echo "::error::Private ROM data or detailed inspection report found in the public artifact."
+            exit 1
+          fi
+
+      - name: Publish only the validated summary and public-binary REA result
+        shell: bash
+        run: |
+          {
+            echo "## Imported private ROM analysis summary"
+            echo
+            cat imported/summary.md
+            echo
+            echo "The detailed ROM inspection remains in the private repository artifact."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Store imported safe artifact in this public run
+        uses: actions/upload-artifact@v4
+        with:
+          name: rom-analysis-imported-${{ steps.verify.outputs.run_id }}
+          path: imported/*
+          if-no-files-found: error
+          retention-days: 14
