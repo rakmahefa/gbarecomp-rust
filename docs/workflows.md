@@ -32,11 +32,11 @@ Le bundle REA contient le binaire hôte avec symboles, les rapports ELF, les mé
 
 ## Analyse ROM et import des résultats (manuel)
 
-Le workflow **Private ROM analysis (manual)** vit dans le dépôt privé `rakmahefa/roms`. Il checkout la ROM localement au runner privé, checkout le code public `gbarecomp-rust@main` sans secret cross-repo, construit `gbarecomp-recomp`, produit les rapports `inspect`/`analyze` et exécute REA/Ghidra sur le binaire natif public.
+Le workflow **Private ROM analysis (manual)** vit dans le dépôt privé `rakmahefa/roms`. Il checkout la ROM localement au runner privé, checkout le code public `gbarecomp-rust@main` sans secret cross-repo, construit `gbarecomp-recomp`, produit les rapports `inspect`/`analyze` et exécute REA/Ghidra sur la ROM comme binaire ARM brut à `0x08000000`, puis sur le binaire natif public.
 
 Il publie deux artefacts séparés dans le dépôt privé :
 - `rom-analysis-private` conserve les détails d'inspection ROM pour 14 jours.
-- `rom-analysis-public` contient uniquement un résumé agrégé, les checksums et le résultat REA du binaire natif du dépôt public. Il exclut l'empreinte de la ROM, son nom, les rapports bruts et le code généré.
+- `rom-analysis-public` contient un résumé agrégé (y compris le statut/configuration de l'analyse REA de la ROM), les checksums et le résultat REA du binaire natif public. Le JSON détaillé REA de la ROM reste dans `rom-analysis-private`; son empreinte, son nom, les rapports bruts et le code généré sont exclus de l'artefact public.
 
 Le workflow **Import private ROM analysis result (manual)** dans le dépôt public prend un Run ID privé. Avec un jeton fine-grained limité à la seule permission `Actions: read` sur `rakmahefa/roms`, il vérifie le succès du run, la liste blanche des fichiers, le schéma et les checksums, puis importe uniquement `rom-analysis-public`. L'artefact importé devient public : les données détaillées de la ROM ne doivent donc jamais y être incluses. La procédure est dans [private-rom-workflow.md](private-rom-workflow.md).
 
