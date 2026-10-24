@@ -67,7 +67,7 @@ Le workflow exige exactement un fichier .gba à la racine de rakmahefa/roms. Le 
 Si l'étape de checkout échoue avec `Load key "...": error in libcrypto`, suivie de `Permission denied (publickey)`, le runner a reçu un secret non vide mais OpenSSH n'arrive pas à le lire comme clé privée. Il s'agit généralement d'une valeur mal copiée, tronquée ou dont les retours à la ligne ont été transformés ; ce n'est pas une erreur de compilation Rust.
 
 1. Sur la machine Linux qui contient la clé, vérifier sa lisibilité sans afficher la clé :
-   
+
        ssh-keygen -y -f ~/.ssh/gbarecomp-rust-roms-actions >/dev/null
 
    La clé générée par les instructions ci-dessus est non chiffrée. Si cette commande échoue, ne pas copier ce fichier dans GitHub ; corriger ou régénérer la paire.
