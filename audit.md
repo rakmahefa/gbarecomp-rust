@@ -127,15 +127,17 @@ Le calcul du PC ARM visible (`adresse instruction + 8`) est déjà présent dans
 
 ## Analyse de ROM privée et transfert d'artefacts — 2026-10-24
 
-L'ancienne architecture plaçait le workflow d'inspection dans le dépôt public et tentait de checkout `rakmahefa/roms` avec `ROMS_DEPLOY_KEY`. Le run [39762725872](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762725872) a échoué avec `Load key ... error in libcrypto` avant toute inspection. Elle est remplacée par une séparation de responsabilité : l'inspection se déroule dans le dépôt privé, et le dépôt public importe uniquement un artefact expressément assaini.
+L'ancienne architecture plaçait le workflow d'inspection dans le dépôt public et tentait de checkout `rakmahefa/roms` avec `ROMS_DEPLOY_KEY`. Le run [39762725872](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762725872) a échoué avec `Load key ... error in libcrypto` avant toute inspection. Elle est remplacée par une séparation de responsabilité : l'inspection/REA se déroule dans le dépôt privé, et le dépôt public importe uniquement un artefact explicitement assaini.
 
 ### Nouvelle architecture proposée
 
-- Le workflow privé `rakmahefa/roms/.github/workflows/rom-analysis.yml` checkout la ROM privée et `gbarecomp-rust@main`, construit la CLI, lance `inspect`/`analyze` et exécute REA/Ghidra sur le binaire natif public.
-- `rom-analysis-private` conserve les rapports ROM-dérivés détaillés dans le dépôt privé; `rom-analysis-public` comprend uniquement le résumé agrégé et le résultat REA du binaire public, qui ne dépend pas des octets ROM.
+- Le workflow privé `rakmahefa/roms/.github/workflows/rom-analysis.yml` checkout la ROM privée et `gbarecomp-rust@main`, construit la CLI, lance `inspect`/`analyze`, puis exécute REA/Ghidra sur la ROM en mode `raw-binary` ARM à l'adresse `0x08000000` et sur le binaire natif public.
+- `rom-analysis-private` conserve les rapports bruts, notamment le JSON REA détaillé de la ROM, dans le dépôt privé. `rom-analysis-public` contient le résumé agrégé, le statut/configuration REA de la ROM sans rapport détaillé, et le JSON REA du seul binaire natif public.
 - Le workflow public `.github/workflows/import-private-rom-analysis.yml` accepte un Run ID privé, vérifie le run source et l'intégrité/liste blanche de l'artefact, puis importe uniquement `rom-analysis-public`.
 - La consommation inter-dépôts nécessite un jeton fine-grained limité au dépôt privé `roms` et à la permission **Actions: read**, stocké comme secret d'environnement `ROMS_ARTIFACT_READ_TOKEN` dans `gbarecomp-rust`. Aucun jeton d'écriture ni accès Contents n'est nécessaire.
-- Ne jamais copier les rapports bruts, la ROM, son nom ou son empreinte, le désassemblage détaillé ou la source générée depuis la ROM dans l'artefact public.
-- REA/Ghidra cible le binaire natif `gbarecomp-recomp` compilé depuis le dépôt public. Ce n'est pas un résultat d'agent IA et ce n'est pas une analyse REA directe de la ROM. L'analyse ROM reste bornée à l'implémentation actuelle; cela ne prouve pas une recompilation complète ou un démarrage d'Emerald.
+- Ne jamais copier les rapports bruts, la ROM, son nom ou son empreinte, le désassemblage/pseudocode REA détaillé ou la source générée depuis la ROM dans l'artefact public.
+- REA/Ghidra reçoit la ROM comme image ARM générique à `0x08000000`; cela ne reproduit pas fidèlement ARM7TDMI ni les éléments matériels GBA (MMIO, wait states, banking). Le JSON REA privé peut donc contenir des diagnostics/limitations et ne prouve pas une recompilation complète ou un démarrage d'Emerald.
 
 État : le workflow privé est proposé dans [rakmahefa/roms PR #1](https://github.com/rakmahefa/roms/pull/1) et l'importateur public dans [gbarecomp-rust PR #7](https://github.com/rakmahefa/gbarecomp-rust/pull/7). Les deux PR restent à revoir/fusionner ; aucun run de la nouvelle chaîne n'a été exécuté. Voir [docs/private-rom-workflow.md](docs/private-rom-workflow.md) pour la configuration manuelle et l'ordre des opérations.
+
+
