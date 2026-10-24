@@ -20,9 +20,10 @@ Deux PRs ouvertes proposent de déplacer l'exécution dans le dépôt privé pui
 
 ### CI / validation de la proposition
 
-- La CI de la base publique, [run 40058586979](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40058586979), et son build, [run 40058729974](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40058729974), sont réussis avant cette proposition.
-- La CI publique la plus récente vérifiée sur la branche de PR #7, [run 40060200483](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40060200483), est verte pour le HEAD `d22503a`; ses vérifications Rust (format, Clippy, tests) et hygiène passent. Des commits documentaires/workflow plus récents peuvent avoir déclenché un run supplémentaire ; à re-vérifier avant fusion.
-- Le workflow privé PR #1 n'a pas encore été fusionné ni exécuté. La passe REA-ROM, Ghidra/REA et le schéma d'artefact restent donc à vérifier au premier run réel.
+- La CI de la base publique, [run 40058586979](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40058586979), et son build, [run 40058729974](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40058729974), sont réussis.
+- La CI de la PR publique #7 sur la révision `58b144a`, [run 40060693076](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40060693076), a réussi. Une révision ultérieure a brièvement échoué parce qu'un remplacement de texte a corrompu le YAML de l'importateur : [run 40060960978](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40060960978), sans job démarré. Le workflow a été reconstruit à plat au commit `ca88971f76cace34c1a1968052cb5483a8554788`; [CI run 40061036759](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/40061036759) était encore en cours au dernier contrôle.
+- Dans le workflow privé, l'installation de REA et de Ghidra, puis la compilation du CLI, ont été ordonnées avant le checkout de la ROM. Le code public est épinglé au SHA `100d45784ad93a49de31d86c85cbdad260c73545`; le runtime Node requis par REA est épinglé à `24.22.1`.
+- La PR privée #1 a reçu ses derniers changements dans `roms` et reste ouverte ; elle n'a pas encore été fusionnée ni exécutée. L'analyse raw ARM/Ghidra et les artefacts doivent toujours être vérifiés lors du premier run réel.
 - L'ancien run [39762725872](https://github.com/rakmahefa/gbarecomp-rust/actions/runs/39762725872) n'a jamais commencé l'inspection : `Load key ... error in libcrypto` puis `Permission denied (publickey)`.
 
 ### Prochaine séquence recommandée
